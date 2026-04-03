@@ -90,7 +90,7 @@ Establish the test project, wire it into the solution, and add `InternalsVisible
 
 ### Task 2: Public Types — Result Enums, Structs, Delegate, and ParameterInfo
 
-- [ ] Not started
+- [x] Completed
 
 **Objective:**
 
