@@ -2,3 +2,9 @@ bin/
 obj/
 .vs/
 .vscode/
+
+# Build logs
+*.binlog
+
+# Planning / temp
+PLANNED.md
