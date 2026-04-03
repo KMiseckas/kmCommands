@@ -18,7 +18,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Core command system (registration + execution) is implemented in `src/`.
 - `src/` contains the entry point (`CommandSystem`), result types, and internal runtime components.
 - `tests/` contains `kmCommands.Tests` (NUnit, `net8.0`) with 71 passing unit tests.
-- `docs/` is currently empty.
+- `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
 ## Folder Hierarchy
@@ -32,7 +32,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 | `src/Results/`                   | Public result structs: `RegistrationResult`, `ExecutionResult` and their error enums.      |
 | `src/Properties/`                | `AssemblyInfo.cs` — `InternalsVisibleTo` declaration.                                      |
 | `tests/kmCommands.Tests/`        | NUnit test project (`net8.0`). 71 unit tests covering all runtime paths.                   |
-| `docs/`                          | Documentation, examples, and integration guides (to be implemented).                       |
+| `docs/`                          | Architecture overview, Unity integration quickstart, and command authoring guide.           |
 | `kmCommands.csproj`              | Library project definition (`netstandard2.0`).                                             |
 | `kmCommands.sln`                 | Solution file — includes main project and test project.                                    |
 | `bin/`, `obj/`                   | Build artifacts (generated).                                                               |
@@ -67,32 +67,26 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 ## Systems In Action
 
-| System             | Status          | Responsibility                                                      | Inputs                                    | Outputs                                    |
-| ------------------ | --------------- | ------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------ |
-| Command Registry   | **Implemented** | Store and resolve command definitions by name.                      | Registration API                          | Resolved command metadata + callback       |
-| Argument System    | **Implemented** | Convert tokens to typed arguments and validate signatures.          | Parsed tokens + command signature         | Typed arguments or structured errors       |
-| Execution Engine   | **Implemented** | Execute callbacks with converted arguments; return structured result.| Command name + string args               | `ExecutionResult` (success, failure, diagnostics) |
-| Command Parser     | Planned         | Parse raw command text and chain segments.                          | Raw string input                          | Parsed invocation model                    |
-| Metadata Provider  | Planned         | Expose command and argument info for autocomplete/help.             | Registry state                            | Queryable metadata model                   |
-| Reflection Scanner | Planned         | Discover attribute-based commands from assemblies; cache results.   | Assemblies/types                          | Command descriptors for registration       |
+| System           | Responsibility                                                        | Inputs                            | Outputs                                           |
+| ---------------- | --------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------- |
+| Command Registry | Store and resolve command definitions by name.                        | Registration API                  | Resolved command metadata + callback              |
+| Argument System  | Convert tokens to typed arguments and validate signatures.            | Parsed tokens + command signature | Typed arguments or structured errors              |
+| Execution Engine | Execute callbacks with converted arguments; return structured result. | Command name + string args        | `ExecutionResult` (success, failure, diagnostics) |
 
-## API Layer Summary (Planned)
+## API Layer Summary
 
-| API Layer              | Scope                                                                      |
-| ---------------------- | -------------------------------------------------------------------------- |
-| Registration API       | Register command definitions manually and via discovered descriptors.      |
-| Execution API          | Execute single command or chain from text input.                           |
-| Parsing/Validation API | Parse command input and validate arguments before callback invocation.     |
-| Metadata API           | Enumerate commands, aliases, descriptions, signatures, and usage hints.    |
-| Extensibility API      | Plug custom argument parsers, validators, middleware hooks, and providers. |
+| API Layer        | Scope                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| Registration API | Register command definitions manually: name, typed parameter signature, callback delegate.   |
+| Execution API    | Execute a registered command by name with string argument tokens; returns structured result. |
 
-## Typical Unity Client Usage (Target)
+## Typical Unity Client Usage
 
-1. Unity layer registers commands (attribute scan and/or manual API).
-2. Unity UI/input layer collects command text from users.
-3. Unity layer calls kmCommands execution API.
-4. kmCommands returns success/error/results and metadata.
-5. Unity layer renders feedback and suggestions.
+1. Unity layer calls `CommandSystem.Initialize()` at startup.
+2. Unity layer registers commands manually (`Register(name, parameters, callback)`).
+3. Unity UI/input layer splits raw command input and calls `CommandSystem.Execute(name, args)`.
+4. kmCommands converts arguments to declared types and invokes the callback.
+5. Unity layer inspects the returned `ExecutionResult` and renders feedback.
 
 ## Critical Constraints
 
@@ -116,12 +110,11 @@ Add this header at the top of new source files in `src/`:
 // See LICENSE file in the project root for full license information.
 ```
 
-## Docs Expectations
+## Docs
 
-- Add architecture summary and terminology in `docs/architecture.md`.
-- Add Unity integration quickstart in `docs/unity-integration.md`.
-- Add command authoring guide in `docs/commands.md`.
-- Add examples showing manual and attribute-based registration.
+- `docs/architecture.md` — component overview, data flow, design decisions, IL2CPP notes.
+- `docs/unity-integration.md` — quickstart for adding kmCommands to a Unity project.
+- `docs/commands.md` — command authoring guide: registration, parameter types, callbacks, error handling.
 
 ## Implementation Direction
 
@@ -135,12 +128,5 @@ The `src/` structure currently implements:
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string)
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator
-
-Planned future structure additions:
-
-- `Core/Parsing` — raw input tokenizer
-- `Core/Metadata` — queryable metadata model
-- `Core/Reflection` — attribute-based command discovery
-- `Abstractions/` — interfaces/contracts for extensibility
 
 Adjust only with explicit design updates.
