@@ -4,5 +4,7 @@
     <AssemblyName>kmCommands</AssemblyName>
     <RootNamespace>kmCommands</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 </Project>
