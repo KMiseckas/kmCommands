@@ -15,9 +15,9 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 ## Current Repository State
 
-- Project is scaffolded.
-- `src/` is currently empty.
-- `tests/` is currently empty.
+- Core command system (registration + execution) is implemented in `src/`.
+- `src/` contains the entry point (`CommandSystem`), result types, and internal runtime components.
+- `tests/` contains `kmCommands.Tests` (NUnit, `net8.0`) with 71 passing unit tests.
 - `docs/` is currently empty.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -25,14 +25,17 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 | Path                    | Purpose                                                              |
 | ----------------------- | -------------------------------------------------------------------- |
-| `.github/instructions/` | Agent instruction files and project guidance.                        |
-| `.vscode/`              | Editor configuration.                                                |
-| `src/`                  | Core kmCommands library source code (to be implemented).             |
-| `tests/`                | Unit/integration tests for core logic (to be implemented).           |
-| `docs/`                 | Documentation, examples, and integration guides (to be implemented). |
-| `kmCommands.csproj`     | Library project definition (`netstandard2.0`).                       |
-| `kmCommands.sln`        | Solution file for development workflow.                              |
-| `bin/`, `obj/`          | Build artifacts (generated).                                         |
+| `.github/instructions/`          | Agent instruction files and project guidance.                                              |
+| `.vscode/`                       | Editor configuration.                                                                      |
+| `src/`                           | Core library source. Contains `CommandSystem`, result types, and `Core/` internal runtime. |
+| `src/Core/`                      | Internal components: `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandDefinition`. |
+| `src/Results/`                   | Public result structs: `RegistrationResult`, `ExecutionResult` and their error enums.      |
+| `src/Properties/`                | `AssemblyInfo.cs` — `InternalsVisibleTo` declaration.                                      |
+| `tests/kmCommands.Tests/`        | NUnit test project (`net8.0`). 71 unit tests covering all runtime paths.                   |
+| `docs/`                          | Documentation, examples, and integration guides (to be implemented).                       |
+| `kmCommands.csproj`              | Library project definition (`netstandard2.0`).                                             |
+| `kmCommands.sln`                 | Solution file — includes main project and test project.                                    |
+| `bin/`, `obj/`                   | Build artifacts (generated).                                                               |
 
 ## Dependencies And Target Versions
 
@@ -41,7 +44,8 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 | .NET target                    | `netstandard2.0`                 |
 | Unity compatibility target     | Unity 2021+                      |
 | C# language expectation        | C# 8-compatible patterns         |
-| Runtime package dependencies   | None currently declared          |
+| Runtime package dependencies   | None                             |
+| Test framework                 | NUnit 4.x (`net8.0`, test project only) |
 | UnityEngine dependency in core | Avoid; keep core engine-agnostic |
 
 ## Library Goals
@@ -61,16 +65,16 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - No text/graphics rendering.
 - No direct dependency on Unity scene update lifecycle.
 
-## Systems In Action (Planned)
+## Systems In Action
 
-| System             | Responsibility                                                      | Inputs                                    | Outputs                                    |
-| ------------------ | ------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------ |
-| Command Registry   | Store and resolve command definitions and aliases.                  | Registration API / attribute scan results | Resolved command metadata + callback       |
-| Command Parser     | Parse raw command text and chain segments.                          | Raw string input                          | Parsed invocation model                    |
-| Argument System    | Convert tokens to typed arguments and validate signatures/defaults. | Parsed tokens + command signature         | Typed arguments or structured errors       |
-| Execution Engine   | Execute callbacks and orchestrate command chains.                   | Invocation model + typed args             | Execution result(s), failures, diagnostics |
-| Metadata Provider  | Expose command and argument info for autocomplete/help.             | Registry state                            | Queryable metadata model                   |
-| Reflection Scanner | Discover attribute-based commands from assemblies; cache results.   | Assemblies/types                          | Command descriptors for registration       |
+| System             | Status          | Responsibility                                                      | Inputs                                    | Outputs                                    |
+| ------------------ | --------------- | ------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------ |
+| Command Registry   | **Implemented** | Store and resolve command definitions by name.                      | Registration API                          | Resolved command metadata + callback       |
+| Argument System    | **Implemented** | Convert tokens to typed arguments and validate signatures.          | Parsed tokens + command signature         | Typed arguments or structured errors       |
+| Execution Engine   | **Implemented** | Execute callbacks with converted arguments; return structured result.| Command name + string args               | `ExecutionResult` (success, failure, diagnostics) |
+| Command Parser     | Planned         | Parse raw command text and chain segments.                          | Raw string input                          | Parsed invocation model                    |
+| Metadata Provider  | Planned         | Expose command and argument info for autocomplete/help.             | Registry state                            | Queryable metadata model                   |
+| Reflection Scanner | Planned         | Discover attribute-based commands from assemblies; cache results.   | Assemblies/types                          | Command descriptors for registration       |
 
 ## API Layer Summary (Planned)
 
@@ -121,14 +125,22 @@ Add this header at the top of new source files in `src/`:
 
 ## Implementation Direction
 
-When source implementation starts in `src/`, organize around:
+The `src/` structure currently implements:
 
-- `Core/Registry`
-- `Core/Parsing`
-- `Core/Arguments`
-- `Core/Execution`
-- `Core/Metadata`
-- `Core/Reflection`
-- `Abstractions` for interfaces/contracts
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution API
+- `src/CommandCallback.cs` — public `CommandCallback` delegate
+- `src/CommandParameterInfo.cs` — public parameter descriptor
+- `src/Results/` — `RegistrationResult`, `ExecutionResult`, and error enums
+- `src/Core/CommandDefinition.cs` — internal command storage model
+- `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
+- `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string)
+- `src/Core/ExecutionHandler.cs` — internal execution orchestrator
 
-Keep these as guidance for future structure; adjust only with explicit design updates.
+Planned future structure additions:
+
+- `Core/Parsing` — raw input tokenizer
+- `Core/Metadata` — queryable metadata model
+- `Core/Reflection` — attribute-based command discovery
+- `Abstractions/` — interfaces/contracts for extensibility
+
+Adjust only with explicit design updates.

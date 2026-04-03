@@ -180,9 +180,9 @@ namespace kmCommands.Tests
         [Test]
         public void IsTypeSupported_BuiltInTypes_AllReturnTrue()
         {
-            Assert.That(_converter.IsTypeSupported(typeof(int)),    Is.True);
-            Assert.That(_converter.IsTypeSupported(typeof(float)),  Is.True);
-            Assert.That(_converter.IsTypeSupported(typeof(bool)),   Is.True);
+            Assert.That(_converter.IsTypeSupported(typeof(int)), Is.True);
+            Assert.That(_converter.IsTypeSupported(typeof(float)), Is.True);
+            Assert.That(_converter.IsTypeSupported(typeof(bool)), Is.True);
             Assert.That(_converter.IsTypeSupported(typeof(string)), Is.True);
         }
     }

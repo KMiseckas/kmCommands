@@ -3,8 +3,8 @@
 ## Status
 
 - [ ] Planned
-- [x] In Progress
-- [ ] Completed
+- [ ] In Progress
+- [x] Completed
 
 ## Inputs
 
