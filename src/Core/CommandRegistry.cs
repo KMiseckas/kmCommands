@@ -99,6 +99,9 @@ namespace kmCommands.Core
             Dictionary<string, CommandParameterInfo[]> entries =
                 new Dictionary<string, CommandParameterInfo[]>(count, StringComparer.OrdinalIgnoreCase);
 
+            Dictionary<string, string> descriptions =
+                new Dictionary<string, string>(count, StringComparer.OrdinalIgnoreCase);
+
             int i = 0;
             foreach (KeyValuePair<string, CommandDefinition> pair in _commands)
             {
@@ -109,10 +112,13 @@ namespace kmCommands.Core
                 CommandParameterInfo[] paramsCopy = new CommandParameterInfo[def.Parameters.Length];
                 Array.Copy(def.Parameters, paramsCopy, def.Parameters.Length);
                 entries[def.Name] = paramsCopy;
+
+                if (def.Description != null)
+                    descriptions[def.Name] = def.Description;
             }
 
             Array.Sort(names, StringComparer.OrdinalIgnoreCase);
-            return new CommandMetadataSnapshot(names, entries);
+            return new CommandMetadataSnapshot(names, entries, descriptions);
         }
 
         /// <summary>

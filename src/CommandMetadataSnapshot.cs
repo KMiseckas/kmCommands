@@ -22,9 +22,11 @@ namespace kmCommands
         private static readonly CommandMetadataSnapshot _empty =
             new CommandMetadataSnapshot(
                 Array.Empty<string>(),
-                new Dictionary<string, CommandParameterInfo[]>(StringComparer.OrdinalIgnoreCase));
+                new Dictionary<string, CommandParameterInfo[]>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
         private readonly Dictionary<string, CommandParameterInfo[]> _entries;
+        private readonly Dictionary<string, string> _descriptions;
 
         /// <summary>
         /// All command names captured at snapshot time, sorted by ordinal case-insensitive order.
@@ -36,10 +38,14 @@ namespace kmCommands
         /// </summary>
         internal static CommandMetadataSnapshot Empty => _empty;
 
-        internal CommandMetadataSnapshot(string[] names, Dictionary<string, CommandParameterInfo[]> entries)
+        internal CommandMetadataSnapshot(
+            string[] names,
+            Dictionary<string, CommandParameterInfo[]> entries,
+            Dictionary<string, string> descriptions)
         {
             CommandNames = names;
             _entries = entries;
+            _descriptions = descriptions;
         }
 
         /// <summary>
@@ -64,6 +70,31 @@ namespace kmCommands
             }
 
             return _entries.TryGetValue(name, out parameters);
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the description for the named command.
+        /// Lookup is case-insensitive.
+        /// Returns <c>false</c> with <c>null</c> when the command was registered without a description
+        /// or is not present in this snapshot.
+        /// </summary>
+        /// <param name="name">The command name to look up.</param>
+        /// <param name="description">
+        /// When this method returns <c>true</c>, the description string captured at snapshot time.
+        /// <c>null</c> when this method returns <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the command was found with a non-null description; <c>false</c> otherwise.
+        /// </returns>
+        public bool TryGetDescription(string name, out string description)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                description = null;
+                return false;
+            }
+
+            return _descriptions.TryGetValue(name, out description);
         }
     }
 }
