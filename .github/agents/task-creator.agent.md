@@ -80,7 +80,6 @@ You do not implement code and do not start implementation agents.
 6. Handoff To User
 
 - Provide a concise summary of produced artifacts and key assumptions.
-- Ask whether the user wants to start implementation with `Task Developer`.
 - Stop after the question; do not auto-run implementation.
 
 ## Escalation And Recovery
