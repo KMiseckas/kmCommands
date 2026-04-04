@@ -61,6 +61,14 @@ namespace kmCommands.Core
             return _converters.ContainsKey(type);
         }
 
+        /// <summary>
+        /// Adds or replaces the converter for the given type.
+        /// </summary>
+        internal void AddConverter(Type type, TryConvertFunc converter)
+        {
+            _converters[type] = converter;
+        }
+
         private static bool TryConvertInt(string input, out object result)
         {
             if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
