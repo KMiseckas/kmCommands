@@ -102,13 +102,13 @@ Expose registered command data for autocompletion, help displays, and tooling.
 
 ---
 
-### ✅ Command Description / Help Text
+### 🔲 Command Description / Help Text
 
 Attach a human-readable description to a command at registration.
 
-- [x] Optional description string at registration
-- [x] Exposed via metadata/discovery API
-- [x] Usable by Unity UI layer for help output
+- [ ] Optional description string at registration
+- [ ] Exposed via metadata/discovery API
+- [ ] Usable by Unity UI layer for help output
 
 ---
 
