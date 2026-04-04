@@ -135,3 +135,67 @@ Register additional names that route to the same command.
 - [ ] Register alias to an existing command name
 - [ ] Alias inherits same parameters and callback
 - [ ] Aliases appear in metadata/discovery output
+
+---
+
+### 🔲 Instance Command Registration
+
+Register commands bound to a specific object instance, enabling instance method callbacks without static boilerplate. Intended to support MonoBehaviour-hosted commands on the Unity side without any `UnityEngine` dependency in the library.
+
+- [ ] `RegisterInstance(object target, string instanceKey)` API — consumer supplies a stable string key to identify the instance
+- [ ] `[Command]` attribute on instance methods discovered at `RegisterInstance()` time (extends attribute-based registration)
+- [ ] Command names follow the scheme `"instanceKey.commandName"` (e.g. `"player.heal"`) — dot separator is fixed; instanceKey and commandName each follow normal naming rules
+- [ ] `UnregisterInstance(string instanceKey)` — removes all commands associated with that instance (critical for scene unload and object destruction)
+- [ ] Consumer is responsible for mapping Unity identity (GameObject name, tag, instance ID) to the instance key string; library does not interpret identity
+- [ ] When multiple instances of the same type exist, the consumer must supply a unique key per instance (e.g. `"enemy_1"`, `"enemy_2"`)
+- [ ] Broadcasting (call all instances sharing a type key) may be an explicit opt-in — deferred to design time
+
+---
+
+### 🔲 Expression Evaluation in Arguments
+
+Evaluate arithmetic expressions in argument strings before type conversion, so values like `2+2`, `10*0.5`, or `(100-20)/4` resolve to their computed result.
+
+- [ ] Opt-in per parameter via a flag on `CommandParameterInfo` (off by default — see note below)
+- [ ] Supported operators: `+`, `-`, `*`, `/`, `%`, parentheses, unary negation
+- [ ] Consumer-registered named variable values (e.g. `"health"`, `"maxSpeed"`) usable inside expressions
+- [ ] Named variable registry is mutable at runtime so consumers can keep it in sync with game state
+- [ ] AOT/IL2CPP safe — recursive descent evaluator only; no `System.Linq.Expressions` or `Emit`
+- [ ] Expression errors reported in `ExecutionResult` before the callback is invoked
+
+**Note**: Expression parsing adds a string scan pass per argument. Opt-in per parameter avoids overhead for commands that never use it and prevents ambiguity in string arguments that legitimately contain `+` or `-` characters.
+
+---
+
+### 🔲 LLM / AI Integration (Dev-Only)
+
+Natural language command dispatch and autonomous AI agent loops backed by external LLMs. Strictly developer tooling — must never be present in release builds.
+
+**Natural language parsing**: consumer passes a free-text string; an LLM resolves it to a recognised command + arguments, which the library then executes through its normal execution path.
+
+**AI agent loop**: given a goal string, an LLM is provided the full command registry as context and autonomously generates and executes a sequence of commands to accomplish the goal.
+
+- [ ] Natural language string → command resolution via LLM, returned through normal `ExecutionResult`
+- [ ] AI agent loop: iterative goal → command sequence generation using live registry context
+- [ ] Consumer provides their own LLM API token via a dedicated initialisation call — token is held only in memory, never written to disk, never logged anywhere
+- [ ] LLM provider is pluggable via interface — no bundled provider; consumer wires up their preferred backend (e.g. OpenAI, Anthropic, local model)
+- [ ] Feature gated behind a compile-time symbol (e.g. `KMCOMMANDS_AI`) — all AI types and code are stripped from builds that do not define it
+- [ ] Secondary runtime guard at every AI call site — no-op with a clear diagnostic result if built without the compile symbol or if not in a dev context
+- [ ] Token and provider config must not appear in any serialised state, asset, or scene file that could ship in a release build
+- [ ] Agent loop has a configurable max-iteration cap (default TBD at design time); loop terminates with a diagnostic result when the cap is reached
+- [ ] Consumer is responsible for rate limiting, cost management, and compliance with their LLM provider's terms of service
+- [ ] Documentation must warn: do not enable in release builds; do not hard-code tokens in source
+
+---
+
+### 🔲 Configuration File Support
+
+Allow `CommandSystem` behaviour to be driven by an external JSON or YAML file loaded at initialisation, reducing the need for repetitive manual setup in the consumer's bootstrap code.
+
+- [ ] Consumer passes a config file path (or raw string content) to `Initialize()`; library parses and applies it
+- [ ] Supported formats: JSON and YAML — both handled by a minimal built-in parser with no third-party dependencies
+- [ ] Configurable settings include: chain delimiter, case-sensitivity mode, expression evaluation defaults, and other behavioural flags added by future features
+- [ ] Config is applied once at initialisation; no live-reload unless consumer calls `Shutdown()` + `Initialize()` again
+- [ ] Unknown keys in config produce a warning result rather than a hard error — forward compatibility
+- [ ] Config file must never contain secrets (tokens, credentials); documentation must state this explicitly
+- [ ] All config values have coded defaults so a missing file is never an error
