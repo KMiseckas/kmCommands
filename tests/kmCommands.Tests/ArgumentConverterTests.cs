@@ -200,7 +200,7 @@ namespace kmCommands.Tests
 
         private static CommandDefinition MakeDefinition(string name)
         {
-            return new CommandDefinition(name, Array.Empty<CommandParameterInfo>(), _ => { });
+            return new CommandDefinition(name, Array.Empty<CommandParameterInfo>(), _ => { }, null);
         }
 
         [Test]

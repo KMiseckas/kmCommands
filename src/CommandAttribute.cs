@@ -27,6 +27,12 @@ namespace kmCommands
         public bool IsDevOnly { get; set; }
 
         /// <summary>
+        /// An optional human-readable description of what this command does.
+        /// Defaults to <c>null</c> when not set.
+        /// </summary>
+        public string Description { get; set; }
+
+        /// <summary>
         /// Initializes a new <see cref="CommandAttribute"/> with the specified command name.
         /// </summary>
         /// <param name="name">The unique command name.</param>

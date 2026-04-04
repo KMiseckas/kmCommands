@@ -12,7 +12,7 @@ A command is a named operation that can be invoked at runtime with typed argumen
 
 ## Registering a Command
 
-Call `CommandSystem.Register` after calling `Initialize()`.
+Call `CommandSystem.Register` after calling `Initialize()`. An optional `description` string can be attached to the command for use by help UIs or autocomplete.
 
 ```csharp
 RegistrationResult result = system.Register(
@@ -24,12 +24,19 @@ RegistrationResult result = system.Register(
     args =>
     {
         // your logic here
-    });
+    },
+    "Optional human-readable description of what this command does.");
 
 if (!result.Success)
 {
     // result.Error and result.ErrorMessage describe what went wrong
 }
+```
+
+Omitting the description argument is valid — the existing 3-argument overload registers the command with a `null` description:
+
+```csharp
+system.Register("reload_config", Array.Empty<CommandParameterInfo>(), args => { });
 ```
 
 ## Parameter Types
@@ -265,6 +272,20 @@ public static void DumpState()
 }
 ```
 
+### Command Descriptions with `Description`
+
+Attach a human-readable description that consumers (e.g., help UIs) can display:
+
+```csharp
+[Command("heal", Description = "Restores the player's health by the specified amount.")]
+public static void Heal(int amount)
+{
+    Player.Health += amount;
+}
+```
+
+Omitting `Description` is valid; the command's description will be `null`.
+
 ### `ScanOptions` and Dev Mode
 
 Pass a `ScanOptions` struct to control dev-mode filtering. `DevMode` defaults to `false`.
@@ -410,8 +431,17 @@ if (snapshot.TryGetParameters(selectedCommand, out CommandParameterInfo[] p))
 - The snapshot is **isolated**: subsequent `Register()` or `Scan()` calls do not affect an already-taken snapshot.
 - `CommandNames` is a sorted array of names captured at snapshot time.
 - `TryGetParameters(name, out parameters)` on the snapshot behaves like the live method but reads from the captured copy. Lookup is case-insensitive.
+- `TryGetDescription(name, out description)` retrieves the optional description attached at registration. Returns `true` and sets `description` when the command was registered with a non-null description; returns `false` and sets `description = null` for commands registered without a description or names not in the snapshot. Lookup is case-insensitive.
 - Returns `CommandMetadataSnapshot.Empty` (an empty singleton) when not initialized.
 - **Allocates once** per call, bounded by registry size. Safe to store and reference across multiple frames.
+
+```csharp
+CommandMetadataSnapshot snapshot = system.GetSnapshot();
+
+// Retrieve description for a help UI
+if (snapshot.TryGetDescription(selectedCommand, out string desc))
+    ShowHelpText(desc);
+```
 
 ### Before `Initialize()` / After `Shutdown()`
 

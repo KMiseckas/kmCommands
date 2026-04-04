@@ -26,12 +26,13 @@ namespace kmCommands.Tests
             _registry.TryRegister(new CommandDefinition(
                 name,
                 Array.Empty<CommandParameterInfo>(),
-                callback));
+                callback,
+                null));
         }
 
         private void RegisterWithParams(string name, CommandParameterInfo[] parameters, CommandCallback callback)
         {
-            _registry.TryRegister(new CommandDefinition(name, parameters, callback));
+            _registry.TryRegister(new CommandDefinition(name, parameters, callback, null));
         }
 
         // ── null / empty command name ───────────────────────────────────────
@@ -161,18 +162,18 @@ namespace kmCommands.Tests
             }, args =>
             {
                 capturedString = (string)args[0];
-                capturedInt    = (int)args[1];
-                capturedFloat  = (float)args[2];
-                capturedBool   = (bool)args[3];
+                capturedInt = (int)args[1];
+                capturedFloat = (float)args[2];
+                capturedBool = (bool)args[3];
             });
 
             ExecutionResult result = _handler.Execute("cmd", new[] { "hero", "42", "1.5", "true" });
 
             Assert.That(result.Success, Is.True);
             Assert.That(capturedString, Is.EqualTo("hero"));
-            Assert.That(capturedInt,    Is.EqualTo(42));
-            Assert.That(capturedFloat,  Is.EqualTo(1.5f));
-            Assert.That(capturedBool,   Is.EqualTo(true));
+            Assert.That(capturedInt, Is.EqualTo(42));
+            Assert.That(capturedFloat, Is.EqualTo(1.5f));
+            Assert.That(capturedBool, Is.EqualTo(true));
         }
 
         [Test]
