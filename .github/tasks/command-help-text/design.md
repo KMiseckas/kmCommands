@@ -75,6 +75,7 @@ touches descriptions during command execution — the execution path is entirely
 ## Data Flow / Control Flow
 
 **Registration (manual):**
+
 1. Caller invokes `CommandSystem.Register(name, params, callback)` — 3-arg overload.
 2. 3-arg overload delegates immediately to the 4-arg overload with `description: null`.
 3. 4-arg overload runs all existing validation (unchanged), then constructs
@@ -82,16 +83,19 @@ touches descriptions during command execution — the execution path is entirely
 4. Registry stores the definition; `Description` is `null`.
 
 **Registration (attribute):**
+
 1. `AttributeScanner.ProcessMethod()` reads `attr.Description` (may be `null`).
 2. Constructs `new CommandDefinition(name, params, callback, attr.Description)`.
 3. Registry stores the definition.
 
 **Snapshot:**
+
 1. `CommandRegistry.BuildSnapshot()` iterates all definitions.
 2. Builds both `_entries` (params) and `_descriptions` (non-null descriptions only).
 3. Returns `new CommandMetadataSnapshot(names, entries, descriptions)`.
 
 **Description retrieval:**
+
 1. Consumer calls `snapshot.TryGetDescription("cmd", out string desc)`.
 2. Returns `_descriptions.TryGetValue(name, ...)`.
 3. Returns `true`+value for a command with a non-null description,
@@ -434,23 +438,24 @@ flowchart TD
 ### New file: `tests/kmCommands.Tests/CommandDescriptionTests.cs`
 
 Test class: `CommandDescriptionTests`
+
 - NUnit `[TestFixture]`
 - Each test: `[SetUp]` calls `_system.Initialize()`, `[TearDown]` calls `_system.Shutdown()`
 - Uses a local `CommandSystem` instance (not static state)
 
 #### Method-to-acceptance-criteria mapping
 
-| Test method | AC |
-|---|---|
-| `Register_WithNonNullDescription_SnapshotContainsDescription` | AC #1 |
-| `Register_WithoutDescription_SnapshotDescriptionIsNull` | AC #2 |
-| `Register_WithEmptyStringDescription_SnapshotDescriptionIsEmptyString` | AC #3 |
-| `Scan_AttributeWithDescription_SnapshotContainsDescription` | AC #4 |
-| `Scan_AttributeWithoutDescription_SnapshotDescriptionIsNull` | AC #5 |
+| Test method                                                              | AC    |
+| ------------------------------------------------------------------------ | ----- |
+| `Register_WithNonNullDescription_SnapshotContainsDescription`            | AC #1 |
+| `Register_WithoutDescription_SnapshotDescriptionIsNull`                  | AC #2 |
+| `Register_WithEmptyStringDescription_SnapshotDescriptionIsEmptyString`   | AC #3 |
+| `Scan_AttributeWithDescription_SnapshotContainsDescription`              | AC #4 |
+| `Scan_AttributeWithoutDescription_SnapshotDescriptionIsNull`             | AC #5 |
 | `TryGetDescription_ExistingCommandWithDescription_CaseInsensitiveLookup` | AC #6 |
-| `TryGetDescription_CommandWithNullDescription_ReturnsFalse` | AC #7 |
-| `Empty_TryGetDescription_ReturnsFalseWithNullDescription` | AC #8 |
-| `SnapshotIsolation_DescriptionNotIncludedForLaterRegisteredCommand` | AC #9 |
+| `TryGetDescription_CommandWithNullDescription_ReturnsFalse`              | AC #7 |
+| `Empty_TryGetDescription_ReturnsFalseWithNullDescription`                | AC #8 |
+| `SnapshotIsolation_DescriptionNotIncludedForLaterRegisteredCommand`      | AC #9 |
 
 #### Supporting attribute-scan test fixture (inner private class)
 
@@ -474,12 +479,12 @@ change. No new tests needed for those criteria; the CI run is the evidence.
 
 ## Risks and Tradeoffs
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| `Empty` singleton not updated to pass descriptions dict | Low | Compile error on updated constructor |
-| Description dict uses wrong comparer → case-sensitive mismatch | Low | Mirror exact pattern from `_entries` |
-| 3-arg `Register` validation silently lost during refactor | Low | Tests cover all existing error paths |
-| `attr.Description` not forwarded in scanner path | Low | AC #4/#5 tests would fail clearly |
+| Risk                                                           | Likelihood | Mitigation                           |
+| -------------------------------------------------------------- | ---------- | ------------------------------------ |
+| `Empty` singleton not updated to pass descriptions dict        | Low        | Compile error on updated constructor |
+| Description dict uses wrong comparer → case-sensitive mismatch | Low        | Mirror exact pattern from `_entries` |
+| 3-arg `Register` validation silently lost during refactor      | Low        | Tests cover all existing error paths |
+| `attr.Description` not forwarded in scanner path               | Low        | AC #4/#5 tests would fail clearly    |
 
 ---
 

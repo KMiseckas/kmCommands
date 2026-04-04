@@ -63,9 +63,10 @@ Add the `Description` string field to the internal `CommandDefinition` storage m
 - Regression guard: `dotnet test tests/kmCommands.Tests/kmCommands.Tests.csproj` — all 103 existing tests pass. (Note: this step will temporarily cause a compile error in `AttributeScanner.cs` and `CommandRegistry.cs` because they still construct `CommandDefinition` with the old 3-arg signature. Suppress by adding `description: null` to those construction sites as interim fixes, or accept the compile error will be resolved in Tasks 2-4.)
 
   > **Practical note:** Because `CommandDefinition`'s constructor is internal, only the files in `src/` that directly call `new CommandDefinition(...)` need updating. Identify them before marking this task done. The call sites are: `CommandSystem.cs` (Task 2) and `AttributeScanner.cs` (Task 3). Both will be updated in their respective tasks. For Task 1 itself, the build **will fail** until those callers are updated. You may combine Task 1 into a single commit with Task 2 if the compile error is blockers to independent validation; however, the preferred approach is:
-  >  - Update `CommandSystem.cs` temporarily to pass `null` as the 4th arg (an interim change that will be overwritten in Task 2).
-  >  - Update `AttributeScanner.cs` temporarily to pass `null` as the 4th arg (an interim change that will be overwritten in Task 3).
-  >  - This allows Task 1 to compile and pass all existing tests independently.
+  >
+  > - Update `CommandSystem.cs` temporarily to pass `null` as the 4th arg (an interim change that will be overwritten in Task 2).
+  > - Update `AttributeScanner.cs` temporarily to pass `null` as the 4th arg (an interim change that will be overwritten in Task 3).
+  > - This allows Task 1 to compile and pass all existing tests independently.
 
 - QA quick pass (`taskReviewer`): verify `CommandDefinition` constructor accepts `null` for `description`; verify `CommandAttribute.Description` compiles with named-arg syntax.
 
@@ -327,17 +328,17 @@ Add `tests/kmCommands.Tests/CommandDescriptionTests.cs` with 9 test methods cove
    - `[Command("nodesc")] public static void NoDescCommand() { }`
 6. Implement the following 9 test methods (each as a distinct `[Test]`):
 
-   | Method name | AC | What to assert |
-   |---|---|---|
-   | `Register_WithNonNullDescription_SnapshotContainsDescription` | AC #1 | Register with `"Help text"` description; `GetSnapshot().TryGetDescription("cmd", out var d)` returns `true` and `d == "Help text"`. |
-   | `Register_WithoutDescription_SnapshotDescriptionIsNull` | AC #2 | Register via 3-arg overload; `TryGetDescription` returns `false` and `out` value is `null`. |
-   | `Register_WithEmptyStringDescription_SnapshotDescriptionIsEmptyString` | AC #3 | Register with `""` description; `TryGetDescription` returns `true` and `d == ""`. |
-   | `Scan_AttributeWithDescription_SnapshotContainsDescription` | AC #4 | Scan `ScanTargets`; `TryGetDescription("described", out var d)` returns `true` and `d == "A described command"`. |
-   | `Scan_AttributeWithoutDescription_SnapshotDescriptionIsNull` | AC #5 | Scan `ScanTargets`; `TryGetDescription("nodesc", out var d)` returns `false` and `d == null`. |
-   | `TryGetDescription_ExistingCommandWithDescription_CaseInsensitiveLookup` | AC #6 | Register with name `"myCmd"` and description; look up via `"MYCMD"` and `"mycmd"` — both return `true` and correct description. |
-   | `TryGetDescription_CommandWithNullDescription_ReturnsFalse` | AC #7 | Register via 3-arg overload; snapshot `TryGetDescription` returns `false`. |
-   | `Empty_TryGetDescription_ReturnsFalseWithNullDescription` | AC #8 | `CommandMetadataSnapshot.Empty.TryGetDescription("any", out var d)` returns `false`; `d == null`. |
-   | `SnapshotIsolation_DescriptionNotIncludedForLaterRegisteredCommand` | AC #9 | Take snapshot after first registration; register second command; confirm snapshot does not contain second command's description (i.e., `TryGetDescription("second", out _)` returns `false` on the first snapshot). |
+   | Method name                                                              | AC    | What to assert                                                                                                                                                                                                      |
+   | ------------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `Register_WithNonNullDescription_SnapshotContainsDescription`            | AC #1 | Register with `"Help text"` description; `GetSnapshot().TryGetDescription("cmd", out var d)` returns `true` and `d == "Help text"`.                                                                                 |
+   | `Register_WithoutDescription_SnapshotDescriptionIsNull`                  | AC #2 | Register via 3-arg overload; `TryGetDescription` returns `false` and `out` value is `null`.                                                                                                                         |
+   | `Register_WithEmptyStringDescription_SnapshotDescriptionIsEmptyString`   | AC #3 | Register with `""` description; `TryGetDescription` returns `true` and `d == ""`.                                                                                                                                   |
+   | `Scan_AttributeWithDescription_SnapshotContainsDescription`              | AC #4 | Scan `ScanTargets`; `TryGetDescription("described", out var d)` returns `true` and `d == "A described command"`.                                                                                                    |
+   | `Scan_AttributeWithoutDescription_SnapshotDescriptionIsNull`             | AC #5 | Scan `ScanTargets`; `TryGetDescription("nodesc", out var d)` returns `false` and `d == null`.                                                                                                                       |
+   | `TryGetDescription_ExistingCommandWithDescription_CaseInsensitiveLookup` | AC #6 | Register with name `"myCmd"` and description; look up via `"MYCMD"` and `"mycmd"` — both return `true` and correct description.                                                                                     |
+   | `TryGetDescription_CommandWithNullDescription_ReturnsFalse`              | AC #7 | Register via 3-arg overload; snapshot `TryGetDescription` returns `false`.                                                                                                                                          |
+   | `Empty_TryGetDescription_ReturnsFalseWithNullDescription`                | AC #8 | `CommandMetadataSnapshot.Empty.TryGetDescription("any", out var d)` returns `false`; `d == null`.                                                                                                                   |
+   | `SnapshotIsolation_DescriptionNotIncludedForLaterRegisteredCommand`      | AC #9 | Take snapshot after first registration; register second command; confirm snapshot does not contain second command's description (i.e., `TryGetDescription("second", out _)` returns `false` on the first snapshot). |
 
 7. Implementation notes:
    - Use `Assert.That(result, Is.True/False)` and `Assert.That(description, Is.EqualTo(...))` following NUnit 3 constraint syntax.
@@ -354,7 +355,7 @@ Add `tests/kmCommands.Tests/CommandDescriptionTests.cs` with 9 test methods cove
 
 - taskReviewer review request:
   - Review scope: `tests/kmCommands.Tests/CommandDescriptionTests.cs` — new file with 9 tests.
-  - Primary checks: All 9 AC items have at least one test. Case-insensitive lookup test covers both `"MYCMD"` and `"mycmd"` variants. `Empty` singleton test uses `CommandMetadataSnapshot.Empty` directly, not a snapshot from `_system`. Snapshot isolation test takes snapshot *before* second registration. No LINQ. `[SetUp]`/`[TearDown]` consistent. `ScanTargets` inner class is `private static`.
+  - Primary checks: All 9 AC items have at least one test. Case-insensitive lookup test covers both `"MYCMD"` and `"mycmd"` variants. `Empty` singleton test uses `CommandMetadataSnapshot.Empty` directly, not a snapshot from `_system`. Snapshot isolation test takes snapshot _before_ second registration. No LINQ. `[SetUp]`/`[TearDown]` consistent. `ScanTargets` inner class is `private static`.
   - Required evidence: `dotnet test` output showing 112/112 passing with `CommandDescriptionTests` class listed.
   - Blocking conditions: any AC without a test; any test skipped or erroring; `Empty` test not using the singleton; case-insensitive test checking only one case variant; test regression in pre-existing 103.
 
