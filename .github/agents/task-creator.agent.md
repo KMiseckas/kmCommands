@@ -25,7 +25,7 @@ You do not implement code and do not start implementation agents.
   1.  `Requirements Planner`
   2.  `Design Planner`
   3.  `Task Planner`
-- Ensure each stage receives enough context from prior outputs.
+- Ensure each stage receives enough context from prior outputs. But subagents should still follow their workflow and not skip steps.
 - Ensure each artifact exists in `.github/tasks/<feature-slug>/`:
   - `requirements.md`
   - `design.md`
