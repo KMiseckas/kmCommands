@@ -64,15 +64,15 @@ Internal store for all registered command definitions.
 
 ---
 
-### 🔲 Attribute-Based Registration
+### ✅ Attribute-Based Registration
 
 Register commands using C# attributes on static methods — no manual `Register()` calls needed.
 
-- [ ] Define attribute (`[Command("name")]`)
-- [ ] Scan a target type or assembly at `Initialize()`
-- [ ] Auto-map method parameters to `CommandParameterInfo`
-- [ ] Skip unsupported parameter types gracefully
-- [ ] AOT/IL2CPP safe (no runtime codegen)
+- [x] Define attribute (`[Command("name")]`)
+- [x] Scan a target type or assembly at `Initialize()`
+- [x] Auto-map method parameters to `CommandParameterInfo`
+- [x] Skip unsupported parameter types gracefully
+- [x] AOT/IL2CPP safe (no runtime codegen)
 
 **Note — release vs. debug command filtering**: two candidate approaches; design should pick whichever is more user-friendly:
 - *Call-site `#if`*: Unity layer wraps the scan call in `#if UNITY_EDITOR || DEVELOPMENT_BUILD` — simple, no lib changes, but places the burden on every consumer.
