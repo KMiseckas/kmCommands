@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using kmCommands;
 
 namespace kmCommands.Core
 {
@@ -52,6 +53,66 @@ namespace kmCommands.Core
         internal bool TryGetCommand(string name, out CommandDefinition definition)
         {
             return _commands.TryGetValue(name, out definition);
+        }
+
+        /// <summary>
+        /// Returns a new array containing all registered command names in their original casing,
+        /// sorted by ordinal case-insensitive order.
+        /// </summary>
+        /// <returns>
+        /// A sorted <c>string[]</c> of command names, or <see cref="Array.Empty{T}()"/> if the
+        /// registry is empty.
+        /// </returns>
+        internal string[] GetAllNames()
+        {
+            int count = _commands.Count;
+            if (count == 0)
+                return Array.Empty<string>();
+
+            string[] names = new string[count];
+            int i = 0;
+            foreach (KeyValuePair<string, CommandDefinition> pair in _commands)
+            {
+                names[i++] = pair.Value.Name;
+            }
+
+            Array.Sort(names, StringComparer.OrdinalIgnoreCase);
+            return names;
+        }
+
+        /// <summary>
+        /// Builds and returns a <see cref="CommandMetadataSnapshot"/> capturing the current
+        /// registry state at this moment.
+        /// </summary>
+        /// <returns>
+        /// A new <see cref="CommandMetadataSnapshot"/> with a structural copy of all registered
+        /// command names and parameter arrays, or <see cref="CommandMetadataSnapshot.Empty"/> if
+        /// the registry is empty.
+        /// </returns>
+        internal CommandMetadataSnapshot BuildSnapshot()
+        {
+            int count = _commands.Count;
+            if (count == 0)
+                return CommandMetadataSnapshot.Empty;
+
+            string[] names = new string[count];
+            Dictionary<string, CommandParameterInfo[]> entries =
+                new Dictionary<string, CommandParameterInfo[]>(count, StringComparer.OrdinalIgnoreCase);
+
+            int i = 0;
+            foreach (KeyValuePair<string, CommandDefinition> pair in _commands)
+            {
+                CommandDefinition def = pair.Value;
+                names[i++] = def.Name;
+
+                // Structural copy: new array, same immutable CommandParameterInfo refs
+                CommandParameterInfo[] paramsCopy = new CommandParameterInfo[def.Parameters.Length];
+                Array.Copy(def.Parameters, paramsCopy, def.Parameters.Length);
+                entries[def.Name] = paramsCopy;
+            }
+
+            Array.Sort(names, StringComparer.OrdinalIgnoreCase);
+            return new CommandMetadataSnapshot(names, entries);
         }
 
         /// <summary>
