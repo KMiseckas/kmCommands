@@ -352,3 +352,73 @@ Both approaches register commands into the same `CommandRegistry` and produce id
 | Suitable for                 | Large sets of commands spread across types | Small sets or dynamic registration |
 
 Both can coexist. Attribute-scanned commands and manually registered commands share the same namespace and are subject to the same duplicate-name rules.
+
+---
+
+## Discovery API
+
+The discovery API lets consumers inspect what commands are registered — names, parameter signatures, and stable snapshots — without executing anything or modifying the registry.
+
+All three methods follow the same safety contract: they never throw, and they return empty results (not `null`) if called before `Initialize()` or after `Shutdown()`.
+
+### `GetCommandNames()`
+
+Returns a sorted array of all currently registered command names.
+
+```csharp
+string[] names = system.GetCommandNames();
+for (int i = 0; i < names.Length; i++)
+    autocomplete.Add(names[i]);
+```
+
+- Names are sorted by ordinal case-insensitive order for deterministic output.
+- Returns `Array.Empty<string>()` when not initialized or when no commands are registered.
+- **Allocates per call** (new `string[]`). For repeated reads, prefer `GetSnapshot()` instead.
+
+### `TryGetCommandParameters(string name, out CommandParameterInfo[] parameters)`
+
+Retrieves the parameter descriptors for a specific command by name. Lookup is case-insensitive.
+
+```csharp
+if (system.TryGetCommandParameters(inputName, out CommandParameterInfo[] parms))
+{
+    for (int i = 0; i < parms.Length; i++)
+        ShowHint(parms[i].Name, parms[i].Type);
+}
+```
+
+- Returns `true` and sets `parameters` if the command exists.
+- Returns `false` and sets `parameters = null` if the system is not initialized, `name` is null or empty, or no matching command is found.
+- The returned array is the **same instance stored in the registry** — do not mutate it.
+- **Zero allocation** on the happy path.
+
+### `GetSnapshot()`
+
+Captures a stable, immutable point-in-time copy of the full registry state.
+
+```csharp
+// Take once after all Register()/Scan() calls complete
+CommandMetadataSnapshot snapshot = system.GetSnapshot();
+
+// Reference later without re-querying
+string[] allNames = snapshot.CommandNames;
+
+if (snapshot.TryGetParameters(selectedCommand, out CommandParameterInfo[] p))
+    RenderParameterPanel(p);
+```
+
+- The snapshot is **isolated**: subsequent `Register()` or `Scan()` calls do not affect an already-taken snapshot.
+- `CommandNames` is a sorted array of names captured at snapshot time.
+- `TryGetParameters(name, out parameters)` on the snapshot behaves like the live method but reads from the captured copy. Lookup is case-insensitive.
+- Returns `CommandMetadataSnapshot.Empty` (an empty singleton) when not initialized.
+- **Allocates once** per call, bounded by registry size. Safe to store and reference across multiple frames.
+
+### Before `Initialize()` / After `Shutdown()`
+
+| Method                       | Pre-init / post-shutdown return value |
+| ---------------------------- | ------------------------------------- |
+| `GetCommandNames()`          | `Array.Empty<string>()`               |
+| `TryGetCommandParameters(…)` | `false`, `parameters = null`          |
+| `GetSnapshot()`              | `CommandMetadataSnapshot.Empty`       |
+
+No exception is thrown in any case.

@@ -30,10 +30,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                       | Visibility |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                            | Internal   |
+| Namespace         | Contents                                                                                                                                                                                                  | Visibility |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                       | Internal   |
 
 ## Components
 
@@ -48,6 +48,21 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 ### CommandRegistry
 
 An `internal sealed class` backed by a `Dictionary<string, CommandDefinition>` with `StringComparer.OrdinalIgnoreCase`. Command names are stored with their original casing but matched case-insensitively.
+
+In addition to registration and lookup, `CommandRegistry` provides two internal discovery methods:
+
+- `GetAllNames()` — returns a new `string[]` of all registered names, sorted `OrdinalIgnoreCase`.
+- `BuildSnapshot()` — returns a `CommandMetadataSnapshot` with a structural copy of all names and parameter arrays.
+
+### CommandMetadataSnapshot
+
+A `public sealed class` with an internal constructor. Carries an immutable, point-in-time copy of the command registry's metadata. Obtained via `CommandSystem.GetSnapshot()`.
+
+- `CommandNames` — sorted `string[]` of all command names at snapshot time.
+- `TryGetParameters(name, out parameters)` — O(1) case-insensitive parameter lookup from the captured copy.
+- `Empty` — internal singleton returned by guard paths (pre-init, post-shutdown).
+
+The snapshot is isolated from subsequent registrations: `BuildSnapshot()` performs a structural copy of each `CommandParameterInfo[]` (via `Array.Copy`), ensuring that new registrations do not affect any already-taken snapshot.
 
 ### ArgumentConverter
 
@@ -190,6 +205,35 @@ CommandSystem.Scan(typeof(PlayerCommands), options)
 **`InvariantCulture` numeric parsing.** Prevents locale-dependent decimal separator issues across platforms and regions.
 
 **No exceptions on expected error paths.** All foreseeable failures return structured results. Exceptions are only thrown from `CommandParameterInfo` constructor on null arguments (programming-error guards, not runtime conditions).
+
+## Discovery Flow
+
+```
+CommandSystem.GetCommandNames()
+  → if (!IsInitialized) return Array.Empty<string>()
+  → _registry.GetAllNames()
+      → foreach entry: copy Name (original casing)
+      → Array.Sort(OrdinalIgnoreCase)
+      → return string[]
+
+CommandSystem.TryGetCommandParameters(name, out parameters)
+  → if (!IsInitialized || null/empty name) { parameters = null; return false }
+  → _registry.TryGetCommand(name, out definition)
+  → if not found: { parameters = null; return false }
+  → parameters = definition.Parameters   // same reference, zero allocation
+  → return true
+
+CommandSystem.GetSnapshot()
+  → if (!IsInitialized) return CommandMetadataSnapshot.Empty
+  → _registry.BuildSnapshot()
+      → if Count == 0, return CommandMetadataSnapshot.Empty
+      → allocate string[Count] and Dictionary(Count, OrdinalIgnoreCase)
+      → foreach entry: copy Name; Array.Copy(def.Parameters, paramsCopy, …)
+      → Array.Sort(names, OrdinalIgnoreCase)
+      → return new CommandMetadataSnapshot(names, entries)
+```
+
+**Allocation profile:** `GetCommandNames()` allocates one `string[]` per call. `GetSnapshot()` allocates one `string[]`, one `Dictionary`, and one `CommandParameterInfo[]` per registered command. `TryGetCommandParameters()` allocates nothing. All discovery allocations are bounded by registry size and occur outside the execution hot path.
 
 ## IL2CPP / AOT Compatibility
 

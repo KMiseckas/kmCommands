@@ -59,6 +59,8 @@ When evaluating dependencies:
 11. Stage and commit the design file to the feature branch:
     - Stage: `.github/tasks/<feature-slug>/design.md`
     - Commit message: `plan(<feature-slug>): add design`
+12. Push the commit to the remote:
+    - Command: `git push`
 
 ## Design Priorities
 

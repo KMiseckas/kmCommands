@@ -264,7 +264,9 @@ Before finalizing `tasks.md`:
 - After finishing `tasks.md`, stage and commit it to the feature branch:
   - Stage: `.github/tasks/<feature-slug>/tasks.md`
   - Commit message: `plan(<feature-slug>): add tasks`
-- After committing, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
+- Push the commit to the remote:
+  - Command: `git push`
+- After pushing, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
 - If assumptions are made, state them explicitly in the output
 
 ## Output Format
