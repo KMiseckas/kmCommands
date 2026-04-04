@@ -26,12 +26,13 @@ namespace kmCommands.Tests
             _registry.TryRegister(new CommandDefinition(
                 name,
                 Array.Empty<CommandParameterInfo>(),
-                callback));
+                callback,
+                null));
         }
 
         private void RegisterWithParams(string name, CommandParameterInfo[] parameters, CommandCallback callback)
         {
-            _registry.TryRegister(new CommandDefinition(name, parameters, callback));
+            _registry.TryRegister(new CommandDefinition(name, parameters, callback, null));
         }
 
         // ── null / empty command name ───────────────────────────────────────

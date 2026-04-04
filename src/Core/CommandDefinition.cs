@@ -15,12 +15,14 @@ namespace kmCommands.Core
         internal CommandParameterInfo[] Parameters { get; }
         internal CommandCallback Callback { get; }
         internal int RequiredParameterCount { get; }
+        internal string Description { get; }
 
-        internal CommandDefinition(string name, CommandParameterInfo[] parameters, CommandCallback callback)
+        internal CommandDefinition(string name, CommandParameterInfo[] parameters, CommandCallback callback, string description)
         {
             Name = name;
             Parameters = parameters;
             Callback = callback;
+            Description = description;
 
             int required = 0;
             for (int i = 0; i < parameters.Length; i++)
