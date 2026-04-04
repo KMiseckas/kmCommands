@@ -3,8 +3,8 @@
 ## Status
 
 - [ ] Planned
-- [ ] In Progress
-- [x] Completed
+- [x] In Progress
+- [ ] Completed
 
 ## Inputs
 
@@ -33,7 +33,7 @@
 
 ### Task 1: Project Scaffolding and Test Infrastructure
 
-- [x] Completed
+- [ ] Completed (gate evidence pending)
 
 **Objective:**
 
@@ -90,7 +90,7 @@ Establish the test project, wire it into the solution, and add `InternalsVisible
 
 ### Task 2: Public Types — Result Enums, Structs, Delegate, and ParameterInfo
 
-- [x] Completed
+- [ ] Completed (gate evidence pending)
 
 **Objective:**
 

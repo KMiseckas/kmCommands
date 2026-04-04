@@ -31,6 +31,8 @@ You operate after requirements and design, and before implementation.
 - Do NOT create vague or oversized tasks that cannot be validated independently
 - Do NOT skip coverage verification against both requirements and design
 - Do NOT finalize tasks without completion gates
+- Do NOT mark any task complete unless every completion-gate checkbox is explicitly satisfied
+- Do NOT mark overall status `Completed` unless every task checkbox and coverage check is complete
 - Do NOT assume a branch name style outside the required prefixes
 - Do NOT finalize tasks if documentation updates are missing where relevant
 - Do NOT finalize tasks if `.github/instructions/projectOverview.instructions.md` sync is needed but not planned
@@ -159,6 +161,8 @@ Use this structure:
 - Keep commits scoped to the task objective.
 - Include doc updates in `docs/` whenever behavior, API, usage, or architecture changes.
 - Keep `.github/instructions/projectOverview.instructions.md` aligned with project-level changes.
+- A task checkbox may be set to complete only after all items under its `Completion Gate` are checked.
+- `## Status -> Completed` may be checked only after all tasks and `## Coverage Check` items are checked.
 
 ## Task List
 
