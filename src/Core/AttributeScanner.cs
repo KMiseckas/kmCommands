@@ -146,7 +146,7 @@ namespace kmCommands.Core
             CommandCallback callback = BuildCallback(method, reflectedParams);
 
             // 5. Register; fail on duplicate name.
-            CommandDefinition definition = new CommandDefinition(name, parameters, callback);
+            CommandDefinition definition = new CommandDefinition(name, parameters, callback, attr.Description);
             if (!_registry.TryRegister(definition))
             {
                 return new ScanEntry(name, RegistrationResult.Fail(
