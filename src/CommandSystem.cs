@@ -93,6 +93,37 @@ namespace kmCommands
             CommandParameterInfo[] parameters,
             CommandCallback callback)
         {
+            return Register(name, parameters, callback, null);
+        }
+
+        /// <summary>
+        /// Registers a command with the given name, parameter signature, callback, and optional description.
+        /// </summary>
+        /// <param name="name">
+        /// The unique command name. Lookup is case-insensitive;
+        /// the original casing is preserved for display/metadata.
+        /// </param>
+        /// <param name="parameters">
+        /// Ordered parameter descriptors. Pass <see cref="System.Array.Empty{T}()"/> for zero-argument commands.
+        /// Must not be <c>null</c>.
+        /// </param>
+        /// <param name="callback">
+        /// The delegate to invoke when the command executes.
+        /// Arguments will be pre-converted to the types declared in <paramref name="parameters"/>.
+        /// </param>
+        /// <param name="description">
+        /// An optional human-readable description of what this command does.
+        /// Pass <c>null</c> to register without a description.
+        /// </param>
+        /// <returns>
+        /// A <see cref="RegistrationResult"/> describing success or the specific failure reason.
+        /// </returns>
+        public RegistrationResult Register(
+            string name,
+            CommandParameterInfo[] parameters,
+            CommandCallback callback,
+            string description)
+        {
             if (!IsInitialized)
             {
                 return RegistrationResult.Fail(
@@ -151,7 +182,7 @@ namespace kmCommands
                 }
             }
 
-            CommandDefinition definition = new CommandDefinition(name, parameters, callback);
+            CommandDefinition definition = new CommandDefinition(name, parameters, callback, description);
 
             if (!_registry.TryRegister(definition))
             {
