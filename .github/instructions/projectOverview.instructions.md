@@ -72,10 +72,10 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 ## API Layer Summary
 
-- Registration API: manual `Register(name, parameters, callback)`.
+- Registration API: manual `Register(name, parameters, callback)` and `Register(name, parameters, callback, description)` — description is optional; pass `null` or use the 3-arg overload to omit.
 - Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
 - Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output.
-- Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`.
+- Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
 
 ## Typical Unity Client Usage
 
@@ -131,6 +131,6 @@ The `src/` structure currently implements:
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string)
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator
 - `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
-- `src/CommandMetadataSnapshot.cs` — public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup
+- `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.
 
 Adjust only with explicit design updates.

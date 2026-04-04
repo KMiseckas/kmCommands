@@ -17,6 +17,7 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 │                  CommandSystem                      │
 │  Initialize() / Shutdown()                          │
 │  Register(name, parameters, callback)               │
+│  Register(name, parameters, callback, description)  │
 │  Execute(commandName, args)                         │
 │  Scan(type, options) / Scan(assembly, options)      │
 └──────┬──────────────┬───────────────┬───────────────┬───────────────┘
@@ -60,6 +61,7 @@ A `public sealed class` with an internal constructor. Carries an immutable, poin
 
 - `CommandNames` — sorted `string[]` of all command names at snapshot time.
 - `TryGetParameters(name, out parameters)` — O(1) case-insensitive parameter lookup from the captured copy.
+- `TryGetDescription(name, out description)` — O(1) case-insensitive description lookup. Returns `false`/`null` when the command was registered without a description or is not in the snapshot.
 - `Empty` — internal singleton returned by guard paths (pre-init, post-shutdown).
 
 The snapshot is isolated from subsequent registrations: `BuildSnapshot()` performs a structural copy of each `CommandParameterInfo[]` (via `Array.Copy`), ensuring that new registrations do not affect any already-taken snapshot.
@@ -90,7 +92,7 @@ An `internal sealed class` that orchestrates the full execution path:
 
 ### CommandDefinition
 
-An `internal sealed class` that stores a command's name, parameter signature (`CommandParameterInfo[]`), and callback delegate. Created at registration time and stored in the registry.
+An `internal sealed class` that stores a command's name, parameter signature (`CommandParameterInfo[]`), callback delegate, and optional description string. Created at registration time and stored in the registry.
 
 ### AttributeScanner
 
