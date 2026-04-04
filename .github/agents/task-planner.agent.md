@@ -254,12 +254,6 @@ Before finalizing `tasks.md`:
 - After finishing `tasks.md`, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
 - If assumptions are made, state them explicitly in the output
 
-## Handoff Rule
-
-- Do not invoke `Task Developer` automatically when task planning is complete
-- Invoke `Task Developer` only after explicit user approval
-- If user declines, stop after delivering the completed planning artifacts and summary
-
 ## Output Format
 
 When complete, provide:

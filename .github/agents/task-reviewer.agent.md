@@ -77,7 +77,6 @@ For final full pass, verify:
 
 - Prefer running targeted tests first, then broader suite as needed
 - If test commands are unclear, infer from project context and state assumptions
-- If tests cannot run in environment, report that as a risk and request evidence from implementer
 - Distinguish between:
   - Tests run and passed
   - Tests run and failed

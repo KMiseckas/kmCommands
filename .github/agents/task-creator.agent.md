@@ -35,7 +35,6 @@ You do not implement code and do not start implementation agents.
 ## Hard Constraints
 
 - Do NOT implement code.
-- Do NOT invoke `Task Developer` automatically.
 - Do NOT skip the sequence.
 - Do NOT continue to design if requirements are missing or unusable.
 - Do NOT continue to task planning if design is missing or unusable.
@@ -96,7 +95,7 @@ Before completion, confirm all are true:
 - `tasks.md` exists and is traceable to requirements/design.
 - The branch naming decision exists in tasks planning output.
 - Docs/instructions sync expectations are included when relevant.
-- No implementation agent was started.
+- No implementation agent was started unless the user explicitly approved that handoff.
 
 ## Output Contract
 
