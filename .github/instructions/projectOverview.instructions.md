@@ -7,46 +7,38 @@ applyTo: "**"
 
 ## What This Project Is
 
-kmCommands is a lightweight, platform-agnostic C# command-system library for Unity 2021+ projects.
+kmCommands is a lightweight, platform-agnostic C# command-system library for Unity 2021+.
 
-It focuses on command definition, discovery, parsing, validation, execution, and metadata exposure.
+It focuses on command definition, parsing, validation, execution, and metadata exposure.
 
 It does not implement UI, input handling, rendering, MonoBehaviour lifecycle behavior, or scene logic.
 
 ## Current Repository State
 
 - Core command system (registration + execution) is implemented in `src/`.
-- `src/` contains the entry point (`CommandSystem`), result types, and internal runtime components.
-- `tests/` contains `kmCommands.Tests` (NUnit, `net8.0`) with 71 passing unit tests.
+- `src/` contains `CommandSystem`, result types, and internal runtime components.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 71 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
-## Folder Hierarchy
+## Key Paths
 
-| Path                    | Purpose                                                              |
-| ----------------------- | -------------------------------------------------------------------- |
-| `.github/instructions/`          | Agent instruction files and project guidance.                                              |
-| `.vscode/`                       | Editor configuration.                                                                      |
-| `src/`                           | Core library source. Contains `CommandSystem`, result types, and `Core/` internal runtime. |
-| `src/Core/`                      | Internal components: `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandDefinition`. |
-| `src/Results/`                   | Public result structs: `RegistrationResult`, `ExecutionResult` and their error enums.      |
-| `src/Properties/`                | `AssemblyInfo.cs` — `InternalsVisibleTo` declaration.                                      |
-| `tests/kmCommands.Tests/`        | NUnit test project (`net8.0`). 71 unit tests covering all runtime paths.                   |
-| `docs/`                          | Architecture overview, Unity integration quickstart, and command authoring guide.           |
-| `kmCommands.csproj`              | Library project definition (`netstandard2.0`).                                             |
-| `kmCommands.sln`                 | Solution file — includes main project and test project.                                    |
-| `bin/`, `obj/`                   | Build artifacts (generated).                                                               |
+- `.github/instructions/`: reusable workflow and project guidance.
+- `.github/agents/`: custom planner/developer/reviewer agents.
+- `.github/tasks/<feature-slug>/`: `requirements.md`, `design.md`, `tasks.md`.
+- `src/`: core library source.
+- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandDefinition`).
+- `src/Results/`: public result structs and error enums.
+- `tests/kmCommands.Tests/`: NUnit test project.
+- `docs/`: architecture and usage documentation.
 
 ## Dependencies And Target Versions
 
-| Item                           | Value                            |
-| ------------------------------ | -------------------------------- |
-| .NET target                    | `netstandard2.0`                 |
-| Unity compatibility target     | Unity 2021+                      |
-| C# language expectation        | C# 8-compatible patterns         |
-| Runtime package dependencies   | None                             |
-| Test framework                 | NUnit 4.x (`net8.0`, test project only) |
-| UnityEngine dependency in core | Avoid; keep core engine-agnostic |
+- .NET target: `netstandard2.0`
+- Unity compatibility: Unity 2021+
+- Runtime dependencies: none
+- Test framework: NUnit (`net8.0` tests project)
+- Core must remain engine-agnostic (`UnityEngine` avoided in `src/`)
 
 ## Library Goals
 
@@ -67,18 +59,14 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 ## Systems In Action
 
-| System           | Responsibility                                                        | Inputs                            | Outputs                                           |
-| ---------------- | --------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------- |
-| Command Registry | Store and resolve command definitions by name.                        | Registration API                  | Resolved command metadata + callback              |
-| Argument System  | Convert tokens to typed arguments and validate signatures.            | Parsed tokens + command signature | Typed arguments or structured errors              |
-| Execution Engine | Execute callbacks with converted arguments; return structured result. | Command name + string args        | `ExecutionResult` (success, failure, diagnostics) |
+- Command Registry: stores and resolves command definitions by name.
+- Argument System: converts string tokens to typed arguments.
+- Execution Engine: invokes callbacks and returns structured `ExecutionResult`.
 
 ## API Layer Summary
 
-| API Layer        | Scope                                                                                        |
-| ---------------- | -------------------------------------------------------------------------------------------- |
-| Registration API | Register command definitions manually: name, typed parameter signature, callback delegate.   |
-| Execution API    | Execute a registered command by name with string argument tokens; returns structured result. |
+- Registration API: manual register(name, parameters, callback).
+- Execution API: execute(name, string args) with structured result output.
 
 ## Typical Unity Client Usage
 
@@ -98,6 +86,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Do not hide static global state; lifecycle should be explicit (`Initialize(...)`, `Shutdown()`).
 - Public API stability matters (library consumed by external Unity clients).
 - Unity-facing concerns (input/UI/rendering) stay outside core library.
+- Planning artifacts (`requirements.md`, `design.md`, `tasks.md`) are source-of-truth for implementation.
 
 ## Required Source Header
 

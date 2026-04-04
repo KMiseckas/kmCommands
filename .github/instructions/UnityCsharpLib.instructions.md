@@ -1,6 +1,6 @@
 ---
 description: "Guidelines for building C# libraries for Unity, ensuring compatibility with IL2CPP and best practices for performance and maintainability."
-applyTo: "**"
+applyTo: "**/*.cs"
 ---
 
 # Unity C# SDK Guidelines
