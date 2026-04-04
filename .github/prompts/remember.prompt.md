@@ -18,6 +18,8 @@ $input
 3. Keep entries short — one bullet per fact, preference, or rule.
 4. Do not alter the YAML frontmatter.
 5. Do not remove any existing content.
+6. Avoid adding duplicate bullets; if a near-duplicate exists, refine the existing bullet instead of adding a new one.
+7. If the memory file grows beyond ~200 lines, move stale notes into `.github/instructions/archive/memory.archive.md` and keep active rules in the main file.
 
 ## Format for appended content
 
