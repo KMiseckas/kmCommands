@@ -3,6 +3,8 @@
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
 
+using System;
+using System.Reflection;
 using kmCommands.Core;
 
 namespace kmCommands
@@ -26,6 +28,7 @@ namespace kmCommands
         private CommandRegistry _registry;
         private ArgumentConverter _converter;
         private ExecutionHandler _executionHandler;
+        private AttributeScanner _attributeScanner;
 
         /// <summary>
         /// Gets a value indicating whether the system has been initialized.
@@ -45,6 +48,7 @@ namespace kmCommands
             _registry = new CommandRegistry();
             _converter = new ArgumentConverter();
             _executionHandler = new ExecutionHandler(_registry, _converter);
+            _attributeScanner = new AttributeScanner(_registry, _converter);
             IsInitialized = true;
         }
 
@@ -62,6 +66,7 @@ namespace kmCommands
             _registry = null;
             _converter = null;
             _executionHandler = null;
+            _attributeScanner = null;
             IsInitialized = false;
         }
 
@@ -165,6 +170,70 @@ namespace kmCommands
             }
 
             return _executionHandler.Execute(commandName, args);
+        }
+
+        /// <summary>
+        /// Scans a single type for <see cref="CommandAttribute"/>-decorated static methods and
+        /// registers each as a command.
+        /// </summary>
+        /// <param name="type">The type to scan. Must not be <c>null</c>.</param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// commands decorated with <c>IsDevOnly = true</c> are silently skipped.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> containing per-command outcomes. Check
+        /// <see cref="ScanResult.HasErrors"/> and iterate <see cref="ScanResult.Entries"/> to
+        /// surface individual failures.
+        /// </returns>
+        public ScanResult Scan(Type type, ScanOptions options = default)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (type == null)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NullParameters,
+                    "Type argument must not be null.");
+            }
+
+            return _attributeScanner.ScanType(type, options);
+        }
+
+        /// <summary>
+        /// Scans all types in the given assembly for <see cref="CommandAttribute"/>-decorated
+        /// static methods and registers each as a command.
+        /// </summary>
+        /// <param name="assembly">The assembly to scan. Must not be <c>null</c>.</param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// commands decorated with <c>IsDevOnly = true</c> are silently skipped.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> containing per-command outcomes across all scanned types.
+        /// </returns>
+        public ScanResult Scan(Assembly assembly, ScanOptions options = default)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (assembly == null)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NullParameters,
+                    "Assembly argument must not be null.");
+            }
+
+            return _attributeScanner.ScanAssembly(assembly, options);
         }
     }
 }

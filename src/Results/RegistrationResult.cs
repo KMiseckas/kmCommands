@@ -29,7 +29,10 @@ namespace kmCommands
         DuplicateCommandName,
 
         /// <summary>One or more parameter types are not supported by the argument converter.</summary>
-        UnsupportedParameterType
+        UnsupportedParameterType,
+
+        /// <summary>The target method is not static. Only static methods can be registered via [Command].</summary>
+        InvalidMethod
     }
 
     /// <summary>

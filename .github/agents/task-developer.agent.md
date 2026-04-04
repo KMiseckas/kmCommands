@@ -62,7 +62,7 @@ After finishing each task:
 
 - If mode is `confirm-each-task`, stop and ask whether to continue
 - If mode is `auto-all`, continue automatically to the next task until done or blocked
-- Do not create a commit unless the user explicitly asks to commit
+- Create a commit unless the user explicitly asks not to commit
 
 If implementation fails against the planned task:
 

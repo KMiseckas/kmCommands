@@ -17,7 +17,8 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 
 - Core command system (registration + execution) is implemented in `src/`.
 - `src/` contains `CommandSystem`, result types, and internal runtime components.
-- `tests/` contains `kmCommands.Tests` (`net8.0`) with 71 passing unit tests.
+- Attribute-based registration (`[Command]`, `ScanOptions`, `AttributeScanner`) is fully implemented.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 82 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -27,8 +28,10 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `.github/agents/`: custom planner/developer/reviewer agents.
 - `.github/tasks/<feature-slug>/`: `requirements.md`, `design.md`, `tasks.md`.
 - `src/`: core library source.
-- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandDefinition`).
-- `src/Results/`: public result structs and error enums.
+- `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
+- `src/ScanOptions.cs`: public `ScanOptions` struct controlling dev-mode filtering.
+- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`).
+- `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`).
 - `tests/kmCommands.Tests/`: NUnit test project.
 - `docs/`: architecture and usage documentation.
 
@@ -62,16 +65,18 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Command Registry: stores and resolves command definitions by name.
 - Argument System: converts string tokens to typed arguments.
 - Execution Engine: invokes callbacks and returns structured `ExecutionResult`.
+- Attribute Scanner: discovers `[Command]`-decorated static methods at initialization time, validates them, builds AOT-safe delegates, and registers them into the Command Registry.
 
 ## API Layer Summary
 
-- Registration API: manual register(name, parameters, callback).
-- Execution API: execute(name, string args) with structured result output.
+- Registration API: manual `Register(name, parameters, callback)`.
+- Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
+- Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output.
 
 ## Typical Unity Client Usage
 
 1. Unity layer calls `CommandSystem.Initialize()` at startup.
-2. Unity layer registers commands manually (`Register(name, parameters, callback)`).
+2. Unity layer registers commands manually (`Register(name, parameters, callback)`) and/or via scan (`Scan(typeof(MyCommands), options)` or `Scan(assembly, options)`).
 3. Unity UI/input layer splits raw command input and calls `CommandSystem.Execute(name, args)`.
 4. kmCommands converts arguments to declared types and invokes the callback.
 5. Unity layer inspects the returned `ExecutionResult` and renders feedback.
@@ -109,13 +114,18 @@ Add this header at the top of new source files in `src/`:
 
 The `src/` structure currently implements:
 
-- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution API
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, and scan API
+- `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
+- `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
 - `src/CommandCallback.cs` — public `CommandCallback` delegate
 - `src/CommandParameterInfo.cs` — public parameter descriptor
-- `src/Results/` — `RegistrationResult`, `ExecutionResult`, and error enums
+- `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`)
+- `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum
+- `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct
 - `src/Core/CommandDefinition.cs` — internal command storage model
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string)
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator
+- `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
 
 Adjust only with explicit design updates.

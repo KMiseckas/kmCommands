@@ -4,11 +4,11 @@
 
 A command is a named operation that can be invoked at runtime with typed arguments. In kmCommands, a command consists of:
 
-| Part | Type | Description |
-|---|---|---|
-| Name | `string` | Unique identifier. Lookup is case-insensitive. |
-| Parameters | `CommandParameterInfo[]` | Ordered list of name + type pairs describing expected arguments. |
-| Callback | `CommandCallback` | Delegate invoked when the command executes. Receives pre-converted arguments. |
+| Part       | Type                     | Description                                                                   |
+| ---------- | ------------------------ | ----------------------------------------------------------------------------- |
+| Name       | `string`                 | Unique identifier. Lookup is case-insensitive.                                |
+| Parameters | `CommandParameterInfo[]` | Ordered list of name + type pairs describing expected arguments.              |
+| Callback   | `CommandCallback`        | Delegate invoked when the command executes. Receives pre-converted arguments. |
 
 ## Registering a Command
 
@@ -36,12 +36,12 @@ if (!result.Success)
 
 The following types are supported out of the box:
 
-| .NET Type | Example token | Notes |
-|---|---|---|
-| `typeof(int)` | `"42"`, `"-10"`, `"0"` | Integer only. `"1.5"` fails. |
-| `typeof(float)` | `"1.5"`, `"-3.14"`, `"10"` | Uses `.` as decimal separator regardless of thread culture. |
-| `typeof(bool)` | `"true"`, `"True"`, `"false"`, `"FALSE"` | Strict `True`/`False` only. `"1"`, `"yes"` are not accepted. |
-| `typeof(string)` | `"anything"` | Always succeeds. Returns the token as-is. |
+| .NET Type        | Example token                            | Notes                                                        |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| `typeof(int)`    | `"42"`, `"-10"`, `"0"`                   | Integer only. `"1.5"` fails.                                 |
+| `typeof(float)`  | `"1.5"`, `"-3.14"`, `"10"`               | Uses `.` as decimal separator regardless of thread culture.  |
+| `typeof(bool)`   | `"true"`, `"True"`, `"false"`, `"FALSE"` | Strict `True`/`False` only. `"1"`, `"yes"` are not accepted. |
+| `typeof(string)` | `"anything"`                             | Always succeeds. Returns the token as-is.                    |
 
 Attempting to register a command with an unsupported parameter type returns `RegistrationError.UnsupportedParameterType`.
 
@@ -156,27 +156,28 @@ if (result.Error == ExecutionError.CallbackThrewException)
 
 ### Registration Errors
 
-| `RegistrationError` | Condition |
-|---|---|
-| `None` | Success |
-| `NotInitialized` | `Initialize()` not called |
-| `NullOrEmptyName` | Name is null or `""` |
-| `NullParameters` | Parameters array is null |
-| `NullCallback` | Callback is null |
-| `DuplicateCommandName` | Name already registered |
-| `UnsupportedParameterType` | Parameter type has no built-in converter |
+| `RegistrationError`        | Condition                                                   |
+| -------------------------- | ----------------------------------------------------------- |
+| `None`                     | Success                                                     |
+| `NotInitialized`           | `Initialize()` not called                                   |
+| `NullOrEmptyName`          | Name is null or `""`                                        |
+| `NullParameters`           | Parameters array is null                                    |
+| `NullCallback`             | Callback is null                                            |
+| `DuplicateCommandName`     | Name already registered                                     |
+| `UnsupportedParameterType` | Parameter type has no built-in converter                    |
+| `InvalidMethod`            | Method decorated with `[Command]` is not static (scan only) |
 
 ### Execution Errors
 
-| `ExecutionError` | Condition |
-|---|---|
-| `None` | Success |
-| `NotInitialized` | `Initialize()` not called |
-| `NullOrEmptyCommandName` | Command name is null or `""` |
-| `CommandNotFound` | No command registered with that name |
-| `ArgumentCountMismatch` | Wrong number of string tokens |
-| `ArgumentConversionFailed` | A token failed to convert to the declared type |
-| `CallbackThrewException` | Callback threw an exception — see `result.Exception` |
+| `ExecutionError`           | Condition                                            |
+| -------------------------- | ---------------------------------------------------- |
+| `None`                     | Success                                              |
+| `NotInitialized`           | `Initialize()` not called                            |
+| `NullOrEmptyCommandName`   | Command name is null or `""`                         |
+| `CommandNotFound`          | No command registered with that name                 |
+| `ArgumentCountMismatch`    | Wrong number of string tokens                        |
+| `ArgumentConversionFailed` | A token failed to convert to the declared type       |
+| `CallbackThrewException`   | Callback threw an exception — see `result.Exception` |
 
 ## Organizing Command Registration
 
@@ -209,3 +210,145 @@ system.Shutdown();
 system.Initialize();
 RegisterAllCommands(); // must be called again
 ```
+
+---
+
+## Attribute-Based Registration
+
+In addition to manual `Register()` calls, commands can be declared close to their implementation using the `[Command]` attribute. The `CommandSystem.Scan()` method then discovers and registers all attributed static methods on a type or across an entire assembly.
+
+### The `[Command]` Attribute
+
+Apply `[Command]` to any `static` method. Provide a command name as the first argument.
+
+```csharp
+using kmCommands;
+
+public static class PlayerCommands
+{
+    [Command("heal")]
+    public static void Heal(int amount)
+    {
+        Player.Health += amount;
+    }
+
+    [Command("teleport")]
+    public static void Teleport(float x, float y, float z)
+    {
+        Player.Position = new Vector3(x, y, z);
+    }
+
+    [Command("reload_scene")]
+    public static void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+}
+```
+
+**Rules:**
+
+- The attribute must be applied to a `static` method. Non-static methods produce a `RegistrationError.InvalidMethod` failure in the scan result.
+- Supported parameter types are the same as for manual registration: `int`, `float`, `bool`, `string`. Methods with unsupported parameter types are skipped with a `RegistrationError.UnsupportedParameterType` failure.
+- Parameters are auto-mapped from the method signature in declaration order — no manual `CommandParameterInfo` construction needed.
+- Commands with up to 4 parameters are supported.
+
+### Dev-Only Commands with `IsDevOnly`
+
+Mark internal/debug commands with `IsDevOnly = true`. They are only registered when the scan runs in dev mode.
+
+```csharp
+[Command("dump_state", IsDevOnly = true)]
+public static void DumpState()
+{
+    // Only available in debug/development builds
+}
+```
+
+### `ScanOptions` and Dev Mode
+
+Pass a `ScanOptions` struct to control dev-mode filtering. `DevMode` defaults to `false`.
+
+```csharp
+bool isDevBuild = /* your build-config logic */;
+ScanOptions options = new ScanOptions { DevMode = isDevBuild };
+```
+
+When `DevMode = false` (default), `IsDevOnly = true` commands are silently skipped — they produce no entry in `ScanResult.Entries`. When `DevMode = true`, they are registered and behave identically to regular commands.
+
+### Type-Scoped Scan
+
+Scan a single class to register all its attributed static methods:
+
+```csharp
+system.Initialize();
+
+ScanOptions options = new ScanOptions { DevMode = isDevBuild };
+ScanResult result = system.Scan(typeof(PlayerCommands), options);
+
+if (result.HasErrors)
+{
+    foreach (ScanEntry entry in result.Entries)
+    {
+        if (!entry.Result.Success)
+            Console.WriteLine($"[kmCommands] {entry.CommandName}: {entry.Result.ErrorMessage}");
+    }
+}
+```
+
+### Assembly-Wide Scan
+
+Scan all types in an assembly at once. Useful for registering all commands in a project without enumerating each class manually.
+
+```csharp
+ScanResult result = system.Scan(System.Reflection.Assembly.GetExecutingAssembly(), options);
+```
+
+First-registered-wins: if two types define a command with the same name, the first encountered is registered and the second produces a `DuplicateCommandName` failure entry.
+
+### `ScanResult` and `ScanEntry`
+
+`ScanResult` holds the per-command outcomes of a scan:
+
+| Member      | Type          | Description                                        |
+| ----------- | ------------- | -------------------------------------------------- |
+| `Entries`   | `ScanEntry[]` | One entry per discovered command method.           |
+| `HasErrors` | `bool`        | `true` if any entry has `Result.Success == false`. |
+
+`ScanEntry` describes a single outcome:
+
+| Member        | Type                 | Description                                                                       |
+| ------------- | -------------------- | --------------------------------------------------------------------------------- |
+| `CommandName` | `string`             | The command name from the attribute, or `string.Empty` for system-level failures. |
+| `Result`      | `RegistrationResult` | The registration outcome (`Success`, `Error`, `ErrorMessage`).                    |
+
+System-level failures (e.g., scan called before `Initialize()`, or with a null argument) are returned as a `ScanResult` with a single `ScanEntry` whose `CommandName` is `string.Empty`.
+
+```csharp
+ScanResult result = system.Scan(typeof(MyCommands));
+
+for (int i = 0; i < result.Entries.Length; i++)
+{
+    ScanEntry entry = result.Entries[i];
+    if (!entry.Result.Success)
+    {
+        // entry.CommandName — which command failed
+        // entry.Result.Error — the RegistrationError enum value
+        // entry.Result.ErrorMessage — a human-readable description
+    }
+}
+```
+
+### Attribute-Based vs. Manual Registration
+
+Both approaches register commands into the same `CommandRegistry` and produce identical runtime behavior. The choice is a code-organization preference.
+
+| Aspect                       | Attribute-based (`[Command]` + Scan)       | Manual (`Register()`)              |
+| ---------------------------- | ------------------------------------------ | ---------------------------------- |
+| Command declaration location | Next to the implementation                 | Centralized registration site      |
+| Parameter setup              | Inferred from method signature             | Explicit `CommandParameterInfo[]`  |
+| Dev-only filtering           | `IsDevOnly = true` on attribute            | Implement in consumer code         |
+| Error feedback               | `ScanResult.Entries`                       | `RegistrationResult` per call      |
+| Suitable for                 | Large sets of commands spread across types | Small sets or dynamic registration |
+
+Both can coexist. Attribute-scanned commands and manually registered commands share the same namespace and are subject to the same duplicate-name rules.

@@ -18,21 +18,22 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 │  Initialize() / Shutdown()                          │
 │  Register(name, parameters, callback)               │
 │  Execute(commandName, args)                         │
-└──────┬──────────────┬───────────────┬───────────────┘
-       │              │               │  (kmCommands.Core namespace)
-       ▼              ▼               ▼
-┌────────────┐ ┌──────────────┐ ┌────────────────┐
-│  Command   │ │  Argument    │ │  Execution     │
-│  Registry  │ │  Converter   │ │  Handler       │
-└────────────┘ └──────────────┘ └────────────────┘
+│  Scan(type, options) / Scan(assembly, options)      │
+└──────┬──────────────┬───────────────┬───────────────┬───────────────┘
+       │              │               │               │  (kmCommands.Core namespace)
+       ▼              ▼               ▼               ▼
+┌────────────┐ ┌──────────────┐ ┌────────────────┐ ┌──────────────────┐
+│  Command   │ │  Argument    │ │  Execution     │ │  Attribute       │
+│  Registry  │ │  Converter   │ │  Handler       │ │  Scanner         │
+└────────────┘ └──────────────┘ └────────────────┘ └──────────────────┘
 ```
 
 ## Namespaces
 
-| Namespace | Contents | Visibility |
-|---|---|---|
-| `kmCommands` | `CommandSystem`, `CommandCallback`, `CommandParameterInfo`, `RegistrationResult`, `ExecutionResult`, error enums | Public |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandDefinition` | Internal |
+| Namespace         | Contents                                                                                                                                                                       | Visibility |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                            | Internal   |
 
 ## Components
 
@@ -54,12 +55,12 @@ An `internal sealed class` that converts string tokens to .NET types using a `Di
 
 Supported built-in types:
 
-| Type | Notes |
-|---|---|
-| `int` | Parsed with `NumberStyles.Integer`, `InvariantCulture` |
-| `float` | Parsed with `NumberStyles.Float`, `InvariantCulture` |
-| `bool` | Strict: `"True"` / `"False"` only (case-insensitive) |
-| `string` | Always succeeds; returns the token as-is |
+| Type     | Notes                                                  |
+| -------- | ------------------------------------------------------ |
+| `int`    | Parsed with `NumberStyles.Integer`, `InvariantCulture` |
+| `float`  | Parsed with `NumberStyles.Float`, `InvariantCulture`   |
+| `bool`   | Strict: `"True"` / `"False"` only (case-insensitive)   |
+| `string` | Always succeeds; returns the token as-is               |
 
 ### ExecutionHandler
 
@@ -75,6 +76,24 @@ An `internal sealed class` that orchestrates the full execution path:
 ### CommandDefinition
 
 An `internal sealed class` that stores a command's name, parameter signature (`CommandParameterInfo[]`), and callback delegate. Created at registration time and stored in the registry.
+
+### AttributeScanner
+
+An `internal sealed class` that implements attribute-based discovery and registration. Constructed in `CommandSystem.Initialize()` alongside `ExecutionHandler`.
+
+- **Responsibilities:** Discovers `[Command]`-decorated methods via reflection, validates them, builds AOT-safe `CommandCallback` delegates, and registers commands into `CommandRegistry`. Returns a `ScanResult` per scan call.
+- **`ScanType(Type, ScanOptions)`:** Inspects all public/non-public static and instance methods declared directly on the type (using `BindingFlags.DeclaredOnly`). For each method with a `[Command]` attribute, runs the processing pipeline.
+- **`ScanAssembly(Assembly, ScanOptions)`:** Enumerates all types in the assembly via `assembly.GetTypes()`, calls `ScanType` per type, and merges all entries into a single `ScanResult`. Handles `ReflectionTypeLoadException` for partially-loaded assemblies.
+- **Processing pipeline per method:**
+  1. `IsDevOnly && !DevMode` → silently skip (no entry produced).
+  2. Not static → `ScanEntry` with `RegistrationError.InvalidMethod`.
+  3. Any parameter type unsupported → `ScanEntry` with `RegistrationError.UnsupportedParameterType` (no partial registration).
+  4. Build AOT-safe callback via `Delegate.CreateDelegate`.
+  5. `TryRegister` fails (duplicate) → `ScanEntry` with `RegistrationError.DuplicateCommandName`.
+  6. Success → `ScanEntry` with `RegistrationResult.Ok()`.
+- **Delegate strategy:** Uses `Delegate.CreateDelegate` to create a strongly-typed `Action` or `Action<T1,...>` intermediate delegate at scan time. The zero-parameter path calls the typed `Action` directly (no `DynamicInvoke`). All other paths wrap with `DynamicInvoke` on the pre-bound typed delegate — AOT-safe on Unity 2021+ IL2CPP.
+- **Parameter limit:** `GetActionDelegateType` supports 1–4 parameters via a `switch`. Commands with 5+ parameters throw `NotSupportedException` at scan time.
+- **Naming conflicts across types:** First-registered-wins. Duplicate names produce a `DuplicateCommandName` failure entry for the later registration.
 
 ## Data Types
 
@@ -139,6 +158,25 @@ CommandSystem.Register("set_health", parameters, callback)
   └─ → RegistrationResult.Ok()
 ```
 
+## Scan Flow
+
+```
+CommandSystem.Scan(typeof(PlayerCommands), options)
+  │
+  ├─ [gate] IsInitialized? No → ScanResult.SystemFailure(NotInitialized)
+  ├─ type null? → ScanResult.SystemFailure(NullParameters)
+  │
+  └─ AttributeScanner.ScanType(type, options)
+       For each method with [Command]:
+         ├─ IsDevOnly && !DevMode? → skip silently (no entry)
+         ├─ not static? → ScanEntry(InvalidMethod)
+         ├─ unsupported param type? → ScanEntry(UnsupportedParameterType)
+         ├─ build callback via Delegate.CreateDelegate
+         ├─ TryRegister fails (duplicate)? → ScanEntry(DuplicateCommandName)
+         └─ → ScanEntry(Ok)
+       → new ScanResult(entries[])
+```
+
 ## Key Design Decisions
 
 **Instance-based, no static state.** `CommandSystem` is a plain class. The consumer owns the lifecycle. This is domain-reload safe (Unity editor re-enters play mode without stale state).
@@ -160,3 +198,6 @@ CommandSystem.Register("set_health", parameters, callback)
 - Static converter methods in `ArgumentConverter` — no closures.
 - All generic types used are explicitly instantiated.
 - No LINQ in `src/`.
+- `AttributeScanner` uses `Delegate.CreateDelegate` (not `MethodInfo.Invoke`) to bind method references at scan time. The resulting typed `Delegate` is captured in the callback lambda — IL2CPP preserves the method reference through this typed delegate, preventing linker stripping of the target methods.
+- `MakeGenericType` for `Action<T1,...>` with the four supported types (`int`, `float`, `bool`, `string`) is reliably AOT-compiled on Unity 2021+ IL2CPP. No `link.xml` entry is required for standard Unity setups.
+- Reflection in `AttributeScanner` is scanning/initialization-time only — never called on the per-execute hot path.
