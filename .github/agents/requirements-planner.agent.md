@@ -46,6 +46,9 @@ You operate before technical design. Your output must help a later design step, 
 8. Record branch name and rationale in the requirements document.
 9. Add a unit testing requirement only when testing is viable and materially useful for the task.
 10. Call out open questions explicitly if some uncertainty remains after clarification.
+11. Stage and commit the requirements file to the feature branch:
+    - Stage: `.github/tasks/<feature-slug>/requirements.md`
+    - Commit message: `plan(<feature-slug>): add requirements`
 
 ## Branch Creation Rules
 

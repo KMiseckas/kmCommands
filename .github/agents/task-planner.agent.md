@@ -15,7 +15,7 @@ You operate after requirements and design, and before implementation.
 ## Core Role
 
 - Read `.github/tasks/<feature-slug>/requirements.md` and `.github/tasks/<feature-slug>/design.md`
-- Reuse the branch defined by `requirements.md`; do not create a new planning branch
+- Checkout the existing feature branch from the `## Branch` section of `requirements.md`; do not create a new planning branch
 - Produce a complete `.github/tasks/<feature-slug>/tasks.md` plan with checkboxes
 - Split work into ordered tasks where each task delivers a meaningful increment and can be validated independently
 - Add repeatable start and completion gates so implementation agents and developers follow the same flow each task
@@ -261,7 +261,10 @@ Before finalizing `tasks.md`:
 
 - Be autonomous by default and proceed with reasonable assumptions
 - Ask the user only high-impact clarifications that materially affect slicing, branch type, or validation strategy
-- After finishing `tasks.md`, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
+- After finishing `tasks.md`, stage and commit it to the feature branch:
+  - Stage: `.github/tasks/<feature-slug>/tasks.md`
+  - Commit message: `plan(<feature-slug>): add tasks`
+- After committing, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
 - If assumptions are made, state them explicitly in the output
 
 ## Output Format

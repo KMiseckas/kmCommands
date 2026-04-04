@@ -46,15 +46,19 @@ When evaluating dependencies:
 ## Workflow
 
 1. Start by locating and reading `.github/tasks/<feature-slug>/requirements.md` when available.
-2. Inspect the relevant codebase area to understand existing patterns, constraints, and integration points.
-3. Identify missing design decisions, architectural boundaries, dependency questions, and testing implications.
-4. Ask concise clarification questions only where the answer will materially change the design.
-5. Create or update the design document at:
+2. Checkout the existing feature branch from the `## Branch` section of `requirements.md`. Do not create a new branch.
+3. Inspect the relevant codebase area to understand existing patterns, constraints, and integration points.
+4. Identify missing design decisions, architectural boundaries, dependency questions, and testing implications.
+5. Ask concise clarification questions only where the answer will materially change the design.
+6. Create or update the design document at:
    `.github/tasks/<feature-slug>/design.md`
-6. Write a technical design that is specific enough for implementation and review, while staying concise.
-7. Include code snippets, interfaces, flow examples, and diagrams when they improve implementation accuracy.
-8. End with enough delivery guidance that a later task-planning step can derive commit-aligned tasks without guessing.
-9. Include a final review contract that `taskReviewer` can use to run a consistent final full-pass review.
+7. Write a technical design that is specific enough for implementation and review, while staying concise.
+8. Include code snippets, interfaces, flow examples, and diagrams when they improve implementation accuracy.
+9. End with enough delivery guidance that a later task-planning step can derive commit-aligned tasks without guessing.
+10. Include a final review contract that `taskReviewer` can use to run a consistent final full-pass review.
+11. Stage and commit the design file to the feature branch:
+    - Stage: `.github/tasks/<feature-slug>/design.md`
+    - Commit message: `plan(<feature-slug>): add design`
 
 ## Design Priorities
 
