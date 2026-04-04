@@ -31,19 +31,20 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                                  | Visibility |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                       | Internal   |
+| Namespace         | Contents                                                                                                                                                                                                                                          | Visibility |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                                                               | Internal   |
 
 ## Components
 
 ### CommandSystem
 
-The public entry point. The consumer creates an instance, calls `Initialize()`, then uses `Register` and `Execute`. `Shutdown()` clears all state and allows re-initialization.
+The public entry point. The consumer creates an instance, calls `Initialize()`, then uses `Register`, `Execute`, and `RegisterConverter`. `Shutdown()` clears all state and allows re-initialization.
 
 - **Lifecycle:** Idempotent `Initialize()` and `Shutdown()`. Calling either method multiple times or out of order is safe.
 - **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`. All are nulled on `Shutdown()`.
+- **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry
@@ -69,6 +70,8 @@ The snapshot is isolated from subsequent registrations: `BuildSnapshot()` perfor
 ### ArgumentConverter
 
 An `internal sealed class` that converts string tokens to .NET types using a `Dictionary<Type, TryConvertFunc>`. Ships with built-in converters for `int`, `float`, `bool`, and `string`. All numeric parsing uses `CultureInfo.InvariantCulture`.
+
+The converter registry is extensible: `AddConverter(Type, TryConvertFunc)` inserts or replaces an entry in the dictionary (last-write wins). `CommandSystem.RegisterConverter` drives this extension — pre-`Initialize()` registrations are buffered in `_pendingConverters` on `CommandSystem` and flushed into `ArgumentConverter` during `Initialize()`; post-`Initialize()` registrations call `AddConverter` directly. `Shutdown()` clears `_pendingConverters` (and nulls the `ArgumentConverter` instance), so the converter set reverts to built-ins only on the next `Initialize()` cycle.
 
 Supported built-in types:
 

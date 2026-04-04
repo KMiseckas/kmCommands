@@ -19,7 +19,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/` contains `CommandSystem`, result types, and internal runtime components.
 - Attribute-based registration (`[Command]`, `ScanOptions`, `AttributeScanner`) is fully implemented.
 - Discovery API (`GetCommandNames`, `TryGetCommandParameters`, `GetSnapshot`) is fully implemented.
-- `tests/` contains `kmCommands.Tests` (`net8.0`) with 103 passing unit tests.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 139 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -31,6 +31,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/`: core library source.
 - `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
 - `src/ScanOptions.cs`: public `ScanOptions` struct controlling dev-mode filtering.
+- `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.
 - `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`).
 - `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`).
@@ -73,6 +74,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 ## API Layer Summary
 
 - Registration API: manual `Register(name, parameters, callback)` and `Register(name, parameters, callback, description)` — description is optional; pass `null` or use the 3-arg overload to omit.
+- Converter API: `RegisterConverter(Type, TypeConverterDelegate)` returning `RegistrationResult` — registers or overrides a converter for a given `System.Type`; safe before or after `Initialize()`; cleared by `Shutdown()`.
 - Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
 - Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output.
 - Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
@@ -118,17 +120,18 @@ Add this header at the top of new source files in `src/`:
 
 The `src/` structure currently implements:
 
-- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, and scan API
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, and `RegisterConverter` with `_pendingConverters` pre-init buffer
 - `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
 - `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
 - `src/CommandCallback.cs` — public `CommandCallback` delegate
+- `src/TypeConverterDelegate.cs` — public `TypeConverterDelegate` delegate; signature `bool(string input, out object result)`
 - `src/CommandParameterInfo.cs` — public parameter descriptor
-- `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`)
+- `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`, `NullConverter`)
 - `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum
 - `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct
 - `src/Core/CommandDefinition.cs` — internal command storage model
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
-- `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string)
+- `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string); extensible via `AddConverter(Type, TryConvertFunc)` internal method
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator
 - `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.

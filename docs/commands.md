@@ -163,16 +163,17 @@ if (result.Error == ExecutionError.CallbackThrewException)
 
 ### Registration Errors
 
-| `RegistrationError`        | Condition                                                   |
-| -------------------------- | ----------------------------------------------------------- |
-| `None`                     | Success                                                     |
-| `NotInitialized`           | `Initialize()` not called                                   |
-| `NullOrEmptyName`          | Name is null or `""`                                        |
-| `NullParameters`           | Parameters array is null                                    |
-| `NullCallback`             | Callback is null                                            |
-| `DuplicateCommandName`     | Name already registered                                     |
-| `UnsupportedParameterType` | Parameter type has no built-in converter                    |
-| `InvalidMethod`            | Method decorated with `[Command]` is not static (scan only) |
+| `RegistrationError`        | Condition                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| `None`                     | Success                                                                          |
+| `NotInitialized`           | `Initialize()` not called                                                        |
+| `NullOrEmptyName`          | Name is null or `""`                                                             |
+| `NullParameters`           | Parameters array is null; also returned by `RegisterConverter` when type is null |
+| `NullCallback`             | Callback is null                                                                 |
+| `NullConverter`            | Converter delegate passed to `RegisterConverter` is null                         |
+| `DuplicateCommandName`     | Name already registered                                                          |
+| `UnsupportedParameterType` | Parameter type has no registered converter (built-in or custom)                  |
+| `InvalidMethod`            | Method decorated with `[Command]` is not static (scan only)                      |
 
 ### Execution Errors
 
@@ -452,3 +453,91 @@ if (snapshot.TryGetDescription(selectedCommand, out string desc))
 | `GetSnapshot()`              | `CommandMetadataSnapshot.Empty`       |
 
 No exception is thrown in any case.
+
+---
+
+## Custom Type Converters
+
+By default kmCommands supports `int`, `float`, `bool`, and `string` as parameter types. Use `RegisterConverter` to add support for any additional `System.Type`.
+
+### Registering a Converter
+
+```csharp
+// Example custom type
+struct Vector2Custom { public float X; public float Y; }
+
+// Register the converter before or after Initialize()
+bool TryParseVector2(string input, out object result)
+{
+    string[] parts = input.Split(',');
+    if (parts.Length == 2
+        && float.TryParse(parts[0], out float x)
+        && float.TryParse(parts[1], out float y))
+    {
+        result = new Vector2Custom { X = x, Y = y };
+        return true;
+    }
+    result = null;
+    return false;
+}
+
+RegistrationResult r = system.RegisterConverter(typeof(Vector2Custom), TryParseVector2);
+if (!r.Success)
+{
+    // r.Error and r.ErrorMessage describe what went wrong
+}
+```
+
+After the converter is registered, commands can declare parameters of that type:
+
+```csharp
+system.Initialize();
+system.RegisterConverter(typeof(Vector2Custom), TryParseVector2);
+
+system.Register(
+    "move",
+    new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
+    args =>
+    {
+        Vector2Custom pos = (Vector2Custom)args[0];
+        MovePlayer(pos);
+    });
+
+system.Execute("move", new[] { "3.0,4.5" });
+```
+
+### Overriding a Built-In Converter
+
+Registering a converter for a type that already has one replaces it (last-write wins). This applies to built-ins too:
+
+```csharp
+// Replace the built-in int converter with a hex-aware one
+system.RegisterConverter(typeof(int), (string input, out object result) =>
+{
+    if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+        && int.TryParse(input.Substring(2),
+            System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture, out int hex))
+    {
+        result = hex;
+        return true;
+    }
+    result = null;
+    return false;
+});
+```
+
+### `TypeConverterDelegate` Signature
+
+```csharp
+public delegate bool TypeConverterDelegate(string input, out object result);
+```
+
+The delegate must return `true` on a successful conversion and write the converted value to `result`. Return `false` and set `result = null` on failure — this causes `Execute()` to return `ExecutionError.ArgumentConversionFailed`.
+
+### Lifecycle Rules
+
+- Converters registered **before** `Initialize()` are buffered and activated when `Initialize()` runs.
+- Converters registered **after** `Initialize()` take effect immediately.
+- `Shutdown()` clears all custom converters. After a new `Initialize()` cycle, re-register any converters needed.
+- `RegisterConverter` itself is safe to call at any point in the lifecycle — before or after `Initialize()`.
