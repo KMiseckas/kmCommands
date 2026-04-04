@@ -25,7 +25,7 @@ You do not implement code and do not start implementation agents.
   1.  `Requirements Planner`
   2.  `Design Planner`
   3.  `Task Planner`
-- Ensure each stage receives enough context from prior outputs.
+- Ensure each stage receives enough context from prior outputs. But subagents should still follow their workflow and not skip steps.
 - Ensure each artifact exists in `.github/tasks/<feature-slug>/`:
   - `requirements.md`
   - `design.md`
@@ -51,7 +51,10 @@ You do not implement code and do not start implementation agents.
 2. Requirements Stage
 
 - Invoke `Requirements Planner` with the user goal and slug context.
+- **Explicitly instruct `Requirements Planner` to create and checkout the feature branch before writing any files.**
 - Expect output at `.github/tasks/<feature-slug>/requirements.md`.
+- After the stage completes, **verify the feature branch was created and is the active branch** before continuing.
+- If no branch was created, instruct `Requirements Planner` to create it now and re-run the commit/push steps before moving on.
 - Check that requirements status, scope, acceptance overview, testing expectations, and branch section are present.
 
 3. Design Stage
@@ -77,7 +80,6 @@ You do not implement code and do not start implementation agents.
 6. Handoff To User
 
 - Provide a concise summary of produced artifacts and key assumptions.
-- Ask whether the user wants to start implementation with `Task Developer`.
 - Stop after the question; do not auto-run implementation.
 
 ## Escalation And Recovery

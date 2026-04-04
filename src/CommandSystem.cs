@@ -133,6 +133,24 @@ namespace kmCommands
                 }
             }
 
+            bool seenOptional = false;
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].IsOptional)
+                {
+                    seenOptional = true;
+                }
+                else if (seenOptional)
+                {
+                    return RegistrationResult.Fail(
+                        RegistrationError.OptionalParameterBeforeRequired,
+                        string.Format(
+                            "Required parameter '{0}' at index {1} appears after an optional parameter. " +
+                            "All optional parameters must follow all required parameters.",
+                            parameters[i].Name, i));
+                }
+            }
+
             CommandDefinition definition = new CommandDefinition(name, parameters, callback);
 
             if (!_registry.TryRegister(definition))

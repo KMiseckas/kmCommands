@@ -48,26 +48,38 @@ namespace kmCommands.Core
                     null);
             }
 
-            int expectedCount = definition.Parameters.Length;
-            int actualCount = args != null ? args.Length : 0;
+            int totalCount    = definition.Parameters.Length;
+            int requiredCount = definition.RequiredParameterCount;
+            int actualCount   = args != null ? args.Length : 0;
 
-            if (actualCount != expectedCount)
+            if (actualCount < requiredCount || actualCount > totalCount)
             {
+                string expectedDesc = requiredCount == totalCount
+                    ? requiredCount.ToString()
+                    : string.Format("between {0} and {1}", requiredCount, totalCount);
+
                 return ExecutionResult.Fail(
                     ExecutionError.ArgumentCountMismatch,
                     string.Format(
                         "Command '{0}' expects {1} argument(s) but received {2}.",
-                        commandName, expectedCount, actualCount),
+                        commandName, expectedDesc, actualCount),
                     null);
             }
 
-            object[] convertedArgs = expectedCount > 0
-                ? new object[expectedCount]
+            object[] convertedArgs = totalCount > 0
+                ? new object[totalCount]
                 : Array.Empty<object>();
 
-            for (int i = 0; i < expectedCount; i++)
+            for (int i = 0; i < totalCount; i++)
             {
                 CommandParameterInfo param = definition.Parameters[i];
+
+                if (i >= actualCount)
+                {
+                    // Argument omitted — inject declared default directly, no string conversion.
+                    convertedArgs[i] = param.DefaultValue;
+                    continue;
+                }
 
                 if (!_converter.TryConvert(param.Type, args[i], out object converted))
                 {
