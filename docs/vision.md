@@ -92,23 +92,23 @@ Execute multiple commands in a single input string using a delimiter.
 
 ---
 
-### 🔲 Command Metadata / Discovery API
+### ✅ Command Metadata / Discovery API
 
 Expose registered command data for autocompletion, help displays, and tooling.
 
-- [ ] Get all registered command names
-- [ ] Get parameter info for a specific command
-- [ ] Read-only metadata snapshot of the registry
+- [x] Get all registered command names
+- [x] Get parameter info for a specific command
+- [x] Read-only metadata snapshot of the registry
 
 ---
 
-### ✅ Command Description / Help Text
+### 🔲 Command Description / Help Text
 
 Attach a human-readable description to a command at registration.
 
-- [x] Optional description string at registration
-- [x] Exposed via metadata/discovery API
-- [x] Usable by Unity UI layer for help output
+- [ ] Optional description string at registration
+- [ ] Exposed via metadata/discovery API
+- [ ] Usable by Unity UI layer for help output
 
 ---
 
