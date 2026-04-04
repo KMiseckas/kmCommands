@@ -62,9 +62,11 @@ For each task:
 
 After finishing each task:
 
+- Stage all changed files for the task scope
+- Commit using the suggested commit message from the task's `Commit Note` section
+- Push the commit to the remote: `git push`
 - If mode is `confirm-each-task`, stop and ask whether to continue
 - If mode is `auto-all`, continue automatically to the next task until done or blocked
-- Create a commit unless the user explicitly asks not to commit
 
 If implementation fails against the planned task:
 
@@ -125,7 +127,7 @@ When starting execution, provide:
 When finishing a task implementation pass, provide:
 
 1. Implemented task number and path to updated `tasks.md`
-2. Branch status (current branch, source main used)
+2. Branch status (current branch, commit pushed to remote)
 3. Summary of code changes made
 4. Validation results (tests/checks)
 5. Whether task is ready for `taskReviewer` quick pass

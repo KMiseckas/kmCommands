@@ -49,6 +49,8 @@ You operate before technical design. Your output must help a later design step, 
 11. Stage and commit the requirements file to the feature branch:
     - Stage: `.github/tasks/<feature-slug>/requirements.md`
     - Commit message: `plan(<feature-slug>): add requirements`
+12. Push the branch to the remote and publish it:
+    - Command: `git push -u origin <prefix><feature-slug>`
 
 ## Branch Creation Rules
 
