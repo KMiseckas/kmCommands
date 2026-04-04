@@ -235,5 +235,70 @@ namespace kmCommands
 
             return _attributeScanner.ScanAssembly(assembly, options);
         }
+
+        /// <summary>
+        /// Returns the names of all currently registered commands.
+        /// Names are returned sorted by ordinal case-insensitive comparison for deterministic output.
+        /// </summary>
+        /// <returns>
+        /// A snapshot array of command names, or <see cref="Array.Empty{T}()"/> if the system is not
+        /// initialized or no commands are registered.
+        /// </returns>
+        public string[] GetCommandNames()
+        {
+            if (!IsInitialized)
+                return Array.Empty<string>();
+
+            return _registry.GetAllNames();
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the parameter descriptors for the named command.
+        /// Lookup is case-insensitive.
+        /// </summary>
+        /// <param name="name">The command name to look up.</param>
+        /// <param name="parameters">
+        /// When this method returns <c>true</c>, the parameter descriptors for the command.
+        /// The returned array is the same instance stored in the registry — do not mutate it.
+        /// <c>null</c> when this method returns <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the command was found; <c>false</c> if the system is not initialized,
+        /// <paramref name="name"/> is null or empty, or no command with that name is registered.
+        /// </returns>
+        public bool TryGetCommandParameters(string name, out CommandParameterInfo[] parameters)
+        {
+            if (!IsInitialized || string.IsNullOrEmpty(name))
+            {
+                parameters = null;
+                return false;
+            }
+
+            if (!_registry.TryGetCommand(name, out Core.CommandDefinition definition))
+            {
+                parameters = null;
+                return false;
+            }
+
+            parameters = definition.Parameters;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns a read-only snapshot of the full registry state at this moment.
+        /// The snapshot is isolated: subsequent <see cref="Register"/> or
+        /// <see cref="Scan(System.Type, ScanOptions)"/> calls do not affect an already-taken snapshot.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="CommandMetadataSnapshot"/> capturing the current registry contents,
+        /// or <see cref="CommandMetadataSnapshot.Empty"/> if the system is not initialized.
+        /// </returns>
+        public CommandMetadataSnapshot GetSnapshot()
+        {
+            if (!IsInitialized)
+                return CommandMetadataSnapshot.Empty;
+
+            return _registry.BuildSnapshot();
+        }
     }
 }
