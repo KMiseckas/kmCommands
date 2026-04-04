@@ -75,8 +75,23 @@ Register commands using C# attributes on static methods — no manual `Register(
 - [x] AOT/IL2CPP safe (no runtime codegen)
 
 **Note — release vs. debug command filtering**: two candidate approaches; design should pick whichever is more user-friendly:
-- *Call-site `#if`*: Unity layer wraps the scan call in `#if UNITY_EDITOR || DEVELOPMENT_BUILD` — simple, no lib changes, but places the burden on every consumer.
-- *`IsDevOnly` attribute flag*: `[Command("name", IsDevOnly = true)]` — lib skips those commands unless the consumer initialises in dev mode; cleaner for the user, requires a dev-mode initialisation concept in the lib.
+
+- _Call-site `#if`_: Unity layer wraps the scan call in `#if UNITY_EDITOR || DEVELOPMENT_BUILD` — simple, no lib changes, but places the burden on every consumer.
+- _`IsDevOnly` attribute flag_: `[Command("name", IsDevOnly = true)]` — lib skips those commands unless the consumer initialises in dev mode; cleaner for the user, requires a dev-mode initialisation concept in the lib.
+
+---
+
+### 🔲 Command History
+
+Maintain an in-memory ring buffer of executed commands, results, and system events. An injectable adapter interface lets consumers optionally persist history to any sink (file, network, etc.) without coupling the core to `System.IO`.
+
+- [ ] In-memory ring buffer with configurable max entry count
+- [ ] Entries record: timestamp, raw input string, resolved command name, result status, error detail
+- [ ] Consumer reads buffer via a history API (e.g. `GetHistory()`, paged or full)
+- [ ] Injectable `IHistoryWriter` adapter — library calls it on each entry append; no I/O without an injected implementation
+- [ ] Adapter is optional — library works fully without one; missing adapter is never an error
+- [ ] Buffer capacity and adapter are configurable at `Initialize()`
+- [ ] Unity layer implements `IHistoryWriter` for file logging, Editor console forwarding, network sinks, etc.
 
 ---
 
@@ -153,6 +168,23 @@ Register commands bound to a specific object instance, enabling instance method 
 - [ ] Consumer is responsible for mapping Unity identity (GameObject name, tag, instance ID) to the instance key string; library does not interpret identity
 - [ ] When multiple instances of the same type exist, the consumer must supply a unique key per instance (e.g. `"enemy_1"`, `"enemy_2"`)
 - [ ] Broadcasting (call all instances sharing a type key) may be an explicit opt-in — deferred to design time
+- [ ] Auto-scan public instance methods and readable/writable properties of a registered type — these become instance commands without requiring a `[Command]` attribute
+- [ ] Private and protected members are ignored by auto-scan; explicit `[Command]` attribute or manual `Register()` call required to expose them
+- [ ] Writable property → setter command; readable property → getter command; read-write property → both registered
+- [ ] Consumer can opt out of auto-scan per registration if they want attribute-only discovery on a given type
+
+---
+
+### 🔲 Autocomplete / Command Suggestions
+
+Return ranked command name suggestions and parameter signatures from a partial input string. Enough for a Unity UI layer to render a dropdown or inline hint without doing its own registry work.
+
+- [ ] `GetSuggestions(string prefix)` API — returns command names that start with the given prefix (case-insensitive)
+- [ ] Each suggestion includes the command's `CommandParameterInfo` list so the UI can display the full signature
+- [ ] Built-in prefix-match implementation in the library — no third-party dependency required
+- [ ] Consumer can supply an `ISuggestionMatcher` to replace or extend matching (e.g. fuzzy match, ranked scoring)
+- [ ] Works on both the live registry and a `CommandMetadataSnapshot`
+- [ ] Returns an empty list (never null) when there are no matches
 
 ---
 
@@ -178,6 +210,8 @@ Natural language command dispatch and autonomous AI agent loops backed by extern
 **Natural language parsing**: consumer passes a free-text string; an LLM resolves it to a recognised command + arguments, which the library then executes through its normal execution path.
 
 **AI agent loop**: given a goal string, an LLM is provided the full command registry as context and autonomously generates and executes a sequence of commands to accomplish the goal.
+
+**Richer context via MonoBehaviour auto-scan**: the public-method/property auto-scan from Instance Command Registration significantly expands the command surface available to an LLM agent without requiring the consumer to manually register every game function — more registered commands means more options for the LLM to compose goal-achieving sequences.
 
 - [ ] Natural language string → command resolution via LLM, returned through normal `ExecutionResult`
 - [ ] AI agent loop: iterative goal → command sequence generation using live registry context
