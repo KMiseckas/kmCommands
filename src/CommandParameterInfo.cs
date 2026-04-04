@@ -26,6 +26,17 @@ namespace kmCommands
         public Type Type { get; }
 
         /// <summary>
+        /// <c>true</c> if this parameter has a declared default value and may be omitted at call time.
+        /// </summary>
+        public bool IsOptional { get; }
+
+        /// <summary>
+        /// The declared default value for this parameter, or <c>null</c> if <see cref="IsOptional"/> is <c>false</c>.
+        /// The runtime type is guaranteed to be assignable to <see cref="Type"/> (enforced at construction).
+        /// </summary>
+        public object DefaultValue { get; }
+
+        /// <summary>
         /// Initializes a new instance of <see cref="CommandParameterInfo"/>.
         /// </summary>
         /// <param name="name">The parameter name. Must not be null.</param>
@@ -38,6 +49,40 @@ namespace kmCommands
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             Type = type ?? throw new ArgumentNullException(nameof(type));
+        }
+
+        /// <summary>
+        /// Initializes a new optional <see cref="CommandParameterInfo"/> with a declared default value.
+        /// </summary>
+        /// <param name="name">The parameter name. Must not be null.</param>
+        /// <param name="type">The parameter type. Must not be null.</param>
+        /// <param name="defaultValue">
+        /// The default value to inject when this argument is omitted at call time.
+        /// Must not be null. Must be assignable to <paramref name="type"/>.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="name"/>, <paramref name="type"/>, or <paramref name="defaultValue"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown if <paramref name="defaultValue"/>'s runtime type is not assignable to <paramref name="type"/>.
+        /// </exception>
+        public CommandParameterInfo(string name, Type type, object defaultValue)
+        {
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Type = type ?? throw new ArgumentNullException(nameof(type));
+
+            if (defaultValue == null)
+                throw new ArgumentNullException(nameof(defaultValue));
+
+            if (!type.IsAssignableFrom(defaultValue.GetType()))
+                throw new ArgumentException(
+                    string.Format(
+                        "Default value of type '{0}' is not assignable to parameter type '{1}'.",
+                        defaultValue.GetType().Name, type.Name),
+                    nameof(defaultValue));
+
+            DefaultValue = defaultValue;
+            IsOptional = true;
         }
     }
 }

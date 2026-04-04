@@ -32,7 +32,13 @@ namespace kmCommands
         UnsupportedParameterType,
 
         /// <summary>The target method is not static. Only static methods can be registered via [Command].</summary>
-        InvalidMethod
+        InvalidMethod,
+
+        /// <summary>
+        /// An optional parameter (one with a default value) appears before a required parameter
+        /// in the command's parameter list. All optional parameters must trail all required parameters.
+        /// </summary>
+        OptionalParameterBeforeRequired
     }
 
     /// <summary>
