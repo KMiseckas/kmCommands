@@ -24,6 +24,7 @@ You operate after requirements and before task planning.
 
 ## Constraints
 
+- Do NOT access, read, or reference files from any other task folder under `.github/tasks/` — only the current task's `.github/tasks/<feature-slug>/` folder is in scope
 - Do NOT write the requirements document from scratch unless the user explicitly asks for a temporary draft
 - Do NOT turn the design into a task checklist or commit plan
 - Do NOT prescribe unnecessary complexity

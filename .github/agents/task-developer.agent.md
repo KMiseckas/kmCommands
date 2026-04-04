@@ -35,6 +35,8 @@ Always read in this order:
 
 If `/docs` contains relevant constraints or examples, follow them unless they conflict with explicit requirements.
 
+**Task isolation rule:** Only access files within the current task's `.github/tasks/<feature-slug>/` folder. Do NOT read, reference, or access files from any other task folder under `.github/tasks/`.
+
 ## Branch Management Rules
 
 Before coding, verify branch state:

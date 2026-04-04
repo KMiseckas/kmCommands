@@ -1,7 +1,7 @@
 ---
 description: "Wrapper manager agent that orchestrates Requirements Planner -> Design Planner -> Task Planner in order to produce requirements.md, design.md, and tasks.md in one run."
 name: Task Creator
-tools: [read, search, agent, todo]
+tools: [vscode/runCommand, read, agent, edit, search, todo]
 model: ["GPT-5 (copilot)", "Claude Sonnet 4.6 (copilot)"]
 argument-hint: "Describe the feature or provide .github/tasks/<feature-slug>/ context to generate requirements, design, and tasks end-to-end"
 user-invocable: true
@@ -39,6 +39,7 @@ You do not implement code and do not start implementation agents.
 - Do NOT continue to design if requirements are missing or unusable.
 - Do NOT continue to task planning if design is missing or unusable.
 - Do NOT rewrite user intent; preserve requested scope unless clarified.
+- Do NOT access, read, or reference files from any other task folder under `.github/tasks/` — only the current task's `.github/tasks/<feature-slug>/` folder is in scope.
 
 ## Orchestration Workflow
 
