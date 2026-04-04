@@ -1,7 +1,7 @@
 ---
 description: "Use when converting requirements.md and design.md into an ordered tasks.md with branch naming, commit-ready task slices, validation gates, and full coverage checks before implementation."
 name: "Task Planner"
-tools: [execute, read, edit, search, agent, todo]
+tools: [read, edit, search, todo]
 model: ["Claude Sonnet 4.6 (copilot)", "GPT-5 (copilot)"]
 argument-hint: "Describe the feature or point to .github/tasks/<feature-slug>/requirements.md and design.md"
 user-invocable: true

@@ -1,7 +1,7 @@
 ---
 description: "Wrapper manager agent that orchestrates Requirements Planner -> Design Planner -> Task Planner in order to produce requirements.md, design.md, and tasks.md in one run."
 name: Task Creator
-tools: [read, search, agent, edit, todo]
+tools: [read, search, agent, todo]
 model: ["GPT-5 (copilot)", "Claude Sonnet 4.6 (copilot)"]
 argument-hint: "Describe the feature or provide .github/tasks/<feature-slug>/ context to generate requirements, design, and tasks end-to-end"
 user-invocable: true

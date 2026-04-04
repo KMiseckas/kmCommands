@@ -1,7 +1,7 @@
 ---
 description: "Use when scoping a proposed feature or task into clear requirements, asking clarifying questions, and creating a non-technical requirements.md for later design and task planning. Good for requirement discovery, feature scope definition, PR scope planning, and deciding whether unit tests should be required."
 name: "Requirements Planner"
-tools: [execute, read, agent, edit, search, web/fetch, todo]
+tools: [read, edit, search, web/fetch, todo]
 model: "GPT-5 (copilot)"
 argument-hint: "Describe the feature, change, or task to turn into requirements"
 user-invocable: true
