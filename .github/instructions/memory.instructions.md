@@ -1,6 +1,6 @@
 ---
-description: 'Memories for agent to use across all interactions.'
-applyTo: '.github/**'
+description: "Memories for agent to use across all interactions."
+applyTo: ".github/**"
 ---
 
 # Workspace Memory

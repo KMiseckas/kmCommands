@@ -51,7 +51,7 @@ You do not implement code and do not start implementation agents.
 
 - Invoke `Requirements Planner` with the user goal and slug context.
 - Expect output at `.github/tasks/<feature-slug>/requirements.md`.
-- Check that requirements status, scope, acceptance overview, and testing expectations are present.
+- Check that requirements status, scope, acceptance overview, testing expectations, and branch section are present.
 
 3. Design Stage
 
@@ -68,6 +68,7 @@ You do not implement code and do not start implementation agents.
 5. Final Consistency Pass
 
 - Verify artifacts are mutually consistent:
+  - Branch name is consistent across requirements and tasks.
   - Tasks map to requirements and design intent.
   - Documentation sync expectations are present where needed.
   - No implementation execution is initiated.
@@ -93,7 +94,7 @@ Before completion, confirm all are true:
 - `requirements.md` exists and is usable.
 - `design.md` exists and is traceable to requirements.
 - `tasks.md` exists and is traceable to requirements/design.
-- The branch naming decision exists in tasks planning output.
+- The planning branch was created in requirements stage and reused in tasks planning output.
 - Docs/instructions sync expectations are included when relevant.
 - No implementation agent was started unless the user explicitly approved that handoff.
 

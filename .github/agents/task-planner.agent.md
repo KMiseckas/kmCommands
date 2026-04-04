@@ -15,7 +15,7 @@ You operate after requirements and design, and before implementation.
 ## Core Role
 
 - Read `.github/tasks/<feature-slug>/requirements.md` and `.github/tasks/<feature-slug>/design.md`
-- Determine a consistent branch name using repository naming rules
+- Reuse the branch defined by `requirements.md`; do not create a new planning branch
 - Produce a complete `.github/tasks/<feature-slug>/tasks.md` plan with checkboxes
 - Split work into ordered tasks where each task delivers a meaningful increment and can be validated independently
 - Add repeatable start and completion gates so implementation agents and developers follow the same flow each task
@@ -33,19 +33,28 @@ You operate after requirements and design, and before implementation.
 - Do NOT finalize tasks without completion gates
 - Do NOT mark any task complete unless every completion-gate checkbox is explicitly satisfied
 - Do NOT mark overall status `Completed` unless every task checkbox and coverage check is complete
+- Do NOT generate a new branch name if `requirements.md` already defines one
 - Do NOT assume a branch name style outside the required prefixes
 - Do NOT finalize tasks if documentation updates are missing where relevant
 - Do NOT finalize tasks if `.github/instructions/projectOverview.instructions.md` sync is needed but not planned
 
 ## Branch Naming Rules
 
-Select exactly one prefix based on best fit:
+Branch naming is owned by `Requirements Planner`.
+
+Task Planner must:
+
+- Read branch name/rationale from the `## Branch` section in `requirements.md`.
+- Validate that the name follows `<prefix><feature-slug>`.
+- Preserve the same branch name in `tasks.md`.
+
+Allowed prefixes:
 
 - `feat_` for new user-facing or capability-adding work
 - `bug_` for defect fixes or behavior corrections
 - `refactor_` for internal restructuring without intended behavior change
 
-Then generate a stable kebab-style suffix from the feature slug.
+Expected suffix style: stable kebab-case feature slug.
 
 Branch format:
 
@@ -57,7 +66,7 @@ Examples:
 - `bug_dispatch-null-guard`
 - `refactor_command-routing`
 
-Always include a one-line rationale for why the selected prefix is correct.
+If the requirements file has no branch section or an invalid branch name, stop and ask for correction instead of inventing a new branch silently.
 
 ## Task Slicing Rules
 
@@ -245,6 +254,7 @@ Before finalizing `tasks.md`:
 - Confirm no major task exists without a source requirement/design anchor
 - Confirm documentation updates are planned for every requirement/design element that changes behavior, API, or usage
 - Confirm `.github/instructions/projectOverview.instructions.md` updates are planned when project-level facts are impacted
+- Confirm `tasks.md` branch section matches the `requirements.md` branch section exactly
 - If a mismatch exists, revise tasks until coverage is complete
 
 ## Interaction Style
