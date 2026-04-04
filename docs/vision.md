@@ -74,6 +74,10 @@ Register commands using C# attributes on static methods — no manual `Register(
 - [ ] Skip unsupported parameter types gracefully
 - [ ] AOT/IL2CPP safe (no runtime codegen)
 
+**Note — release vs. debug command filtering**: two candidate approaches; design should pick whichever is more user-friendly:
+- *Call-site `#if`*: Unity layer wraps the scan call in `#if UNITY_EDITOR || DEVELOPMENT_BUILD` — simple, no lib changes, but places the burden on every consumer.
+- *`IsDevOnly` attribute flag*: `[Command("name", IsDevOnly = true)]` — lib skips those commands unless the consumer initialises in dev mode; cleaner for the user, requires a dev-mode initialisation concept in the lib.
+
 ---
 
 ### 🔲 Command Chaining
