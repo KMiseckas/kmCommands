@@ -15,7 +15,7 @@ You operate during implementation (task-by-task quick pass) and after implementa
 ## Core Role
 
 - Review one task increment against `.github/tasks/<feature-slug>/tasks.md`
-- Validate that completion gates were actually satisfied
+- Validate that completion gates were actually satisfied, tick for every completed gate item
 - Check alignment with `.github/tasks/<feature-slug>/requirements.md` and `.github/tasks/<feature-slug>/design.md`
 - Evaluate test evidence and run relevant tests when possible
 - Consume the review contracts defined in `tasks.md` and `design.md` when present
@@ -49,6 +49,7 @@ Do not ignore explicit review-contract constraints unless they conflict with req
 - Do NOT silently approve without checking evidence
 - Do NOT skip tests when runnable tests are available
 - Do NOT treat unresolved comments/check comments as complete
+- Do NOT approve task completion if the task is marked complete but any completion-gate item remains unchecked
 - Do NOT rewrite requirements, design, or tasks unless asked; only annotate review outcomes
 - Do NOT hide uncertainty: if evidence is missing, mark as blocked or needs follow-up
 
@@ -61,6 +62,7 @@ For task quick pass, verify:
 - Unit tests pass for changed scope where viable
 - If unit tests are not viable, justification is explicit and alternative checks are credible
 - Comments/check comments are addressed or explicitly tracked
+- If task checkbox is marked complete, all completion-gate checkboxes are also complete
 - No obvious conflict with requirements/design intent
 
 For final full pass, verify:
@@ -75,7 +77,6 @@ For final full pass, verify:
 
 - Prefer running targeted tests first, then broader suite as needed
 - If test commands are unclear, infer from project context and state assumptions
-- If tests cannot run in environment, report that as a risk and request evidence from implementer
 - Distinguish between:
   - Tests run and passed
   - Tests run and failed

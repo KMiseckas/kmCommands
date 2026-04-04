@@ -1,7 +1,7 @@
 ---
 description: "Use when turning a requirements.md into a technical design.md for implementation planning. Good for feature design, architecture decisions, dependency evaluation, code snippets, diagrams, and preparing clear design input for later task and QA work."
 name: "Design Planner"
-tools: [execute, read, edit, search, web/fetch, todo]
+tools: [read, edit, search, web/fetch, todo]
 model: ["Claude Opus 4.6 (copilot)", "GPT-5 (copilot)"]
 argument-hint: "Describe the feature or point to the requirements.md to turn into a technical design"
 user-invocable: true

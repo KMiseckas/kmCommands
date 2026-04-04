@@ -39,16 +39,10 @@ If `/docs` contains relevant constraints or examples, follow them unless they co
 
 Before coding, verify branch state:
 
-1. Confirm current branch name matches `tasks.md` branch plan
-2. If branch does not exist locally, create it from the latest available `main`
-3. Prefer remote-tracking main when available (`origin/main`)
-4. If no remote is configured, use local `main`
-
-Branch setup behavior:
-
-- With remote: fetch, ensure latest `origin/main`, branch from it
-- Without remote: branch from local `main`
-- If already on correct branch, continue
+1. Confirm branch name in `requirements.md` matches branch name in `tasks.md`
+2. Confirm current branch name matches that planned branch
+3. If on a different branch, switch to the planned branch
+4. If planned branch does not exist locally, stop and report `BLOCKED` (branch must be created by Requirements Planner)
 
 Do not use destructive git operations.
 

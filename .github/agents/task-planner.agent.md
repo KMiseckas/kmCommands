@@ -1,7 +1,7 @@
 ---
 description: "Use when converting requirements.md and design.md into an ordered tasks.md with branch naming, commit-ready task slices, validation gates, and full coverage checks before implementation."
 name: "Task Planner"
-tools: [execute, read, edit, search, agent, todo]
+tools: [read, edit, search, todo]
 model: ["Claude Sonnet 4.6 (copilot)", "GPT-5 (copilot)"]
 argument-hint: "Describe the feature or point to .github/tasks/<feature-slug>/requirements.md and design.md"
 user-invocable: true
@@ -15,7 +15,7 @@ You operate after requirements and design, and before implementation.
 ## Core Role
 
 - Read `.github/tasks/<feature-slug>/requirements.md` and `.github/tasks/<feature-slug>/design.md`
-- Determine a consistent branch name using repository naming rules
+- Reuse the branch defined by `requirements.md`; do not create a new planning branch
 - Produce a complete `.github/tasks/<feature-slug>/tasks.md` plan with checkboxes
 - Split work into ordered tasks where each task delivers a meaningful increment and can be validated independently
 - Add repeatable start and completion gates so implementation agents and developers follow the same flow each task
@@ -31,19 +31,30 @@ You operate after requirements and design, and before implementation.
 - Do NOT create vague or oversized tasks that cannot be validated independently
 - Do NOT skip coverage verification against both requirements and design
 - Do NOT finalize tasks without completion gates
+- Do NOT mark any task complete unless every completion-gate checkbox is explicitly satisfied
+- Do NOT mark overall status `Completed` unless every task checkbox and coverage check is complete
+- Do NOT generate a new branch name if `requirements.md` already defines one
 - Do NOT assume a branch name style outside the required prefixes
 - Do NOT finalize tasks if documentation updates are missing where relevant
 - Do NOT finalize tasks if `.github/instructions/projectOverview.instructions.md` sync is needed but not planned
 
 ## Branch Naming Rules
 
-Select exactly one prefix based on best fit:
+Branch naming is owned by `Requirements Planner`.
+
+Task Planner must:
+
+- Read branch name/rationale from the `## Branch` section in `requirements.md`.
+- Validate that the name follows `<prefix><feature-slug>`.
+- Preserve the same branch name in `tasks.md`.
+
+Allowed prefixes:
 
 - `feat_` for new user-facing or capability-adding work
 - `bug_` for defect fixes or behavior corrections
 - `refactor_` for internal restructuring without intended behavior change
 
-Then generate a stable kebab-style suffix from the feature slug.
+Expected suffix style: stable kebab-case feature slug.
 
 Branch format:
 
@@ -55,7 +66,7 @@ Examples:
 - `bug_dispatch-null-guard`
 - `refactor_command-routing`
 
-Always include a one-line rationale for why the selected prefix is correct.
+If the requirements file has no branch section or an invalid branch name, stop and ask for correction instead of inventing a new branch silently.
 
 ## Task Slicing Rules
 
@@ -159,6 +170,8 @@ Use this structure:
 - Keep commits scoped to the task objective.
 - Include doc updates in `docs/` whenever behavior, API, usage, or architecture changes.
 - Keep `.github/instructions/projectOverview.instructions.md` aligned with project-level changes.
+- A task checkbox may be set to complete only after all items under its `Completion Gate` are checked.
+- `## Status -> Completed` may be checked only after all tasks and `## Coverage Check` items are checked.
 
 ## Task List
 
@@ -241,6 +254,7 @@ Before finalizing `tasks.md`:
 - Confirm no major task exists without a source requirement/design anchor
 - Confirm documentation updates are planned for every requirement/design element that changes behavior, API, or usage
 - Confirm `.github/instructions/projectOverview.instructions.md` updates are planned when project-level facts are impacted
+- Confirm `tasks.md` branch section matches the `requirements.md` branch section exactly
 - If a mismatch exists, revise tasks until coverage is complete
 
 ## Interaction Style
@@ -249,12 +263,6 @@ Before finalizing `tasks.md`:
 - Ask the user only high-impact clarifications that materially affect slicing, branch type, or validation strategy
 - After finishing `tasks.md`, explicitly ask: "Start implementation with Task Developer now?" and wait for a yes/no response
 - If assumptions are made, state them explicitly in the output
-
-## Handoff Rule
-
-- Do not invoke `Task Developer` automatically when task planning is complete
-- Invoke `Task Developer` only after explicit user approval
-- If user declines, stop after delivering the completed planning artifacts and summary
 
 ## Output Format
 
