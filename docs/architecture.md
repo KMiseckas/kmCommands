@@ -30,10 +30,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                               | Visibility |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| Namespace         | Contents                                                                                                                                                                                                  | Visibility |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                    | Internal   |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                       | Internal   |
 
 ## Components
 

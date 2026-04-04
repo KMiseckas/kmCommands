@@ -415,10 +415,10 @@ if (snapshot.TryGetParameters(selectedCommand, out CommandParameterInfo[] p))
 
 ### Before `Initialize()` / After `Shutdown()`
 
-| Method                        | Pre-init / post-shutdown return value |
-| ----------------------------- | ------------------------------------- |
-| `GetCommandNames()`           | `Array.Empty<string>()`               |
-| `TryGetCommandParameters(…)`  | `false`, `parameters = null`          |
-| `GetSnapshot()`               | `CommandMetadataSnapshot.Empty`       |
+| Method                       | Pre-init / post-shutdown return value |
+| ---------------------------- | ------------------------------------- |
+| `GetCommandNames()`          | `Array.Empty<string>()`               |
+| `TryGetCommandParameters(…)` | `false`, `parameters = null`          |
+| `GetSnapshot()`              | `CommandMetadataSnapshot.Empty`       |
 
 No exception is thrown in any case.
