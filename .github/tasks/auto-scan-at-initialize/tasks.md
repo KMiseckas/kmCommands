@@ -2,9 +2,9 @@
 
 ## Status
 
-- [ ] Planned
-- [ ] In Progress
-- [ ] Completed
+- [x] Planned
+- [x] In Progress
+- [x] Completed
 
 ## Inputs
 
@@ -32,7 +32,7 @@
 
 ### Task 1: Extend `ScanResult` with `IsAlreadyInitialized`
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -74,14 +74,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -92,7 +92,7 @@ Commit Note:
 
 ### Task 2: Add `InitializeCore` Private Helper to `CommandSystem`
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -138,14 +138,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -156,7 +156,7 @@ Commit Note:
 
 ### Task 3: Add `RunInitTimeScans` Private Helper to `CommandSystem`
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -203,14 +203,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -221,7 +221,7 @@ Commit Note:
 
 ### Task 4: Add Three New `Initialize` Overloads to `CommandSystem`
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -270,14 +270,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -288,7 +288,7 @@ Commit Note:
 
 ### Task 5: Write `AutoScanAtInitializeTests.cs` (All 25 Test Cases)
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -365,14 +365,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -383,7 +383,7 @@ Commit Note:
 
 ### Task 6: Run Full Test Suite — Verify 0 Failures
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -427,14 +427,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -445,7 +445,7 @@ Commit Note:
 
 ### Task 7: Update Documentation and Project Overview
 
-- [ ] Not started
+- [x] Completed
 
 Objective:
 
@@ -496,14 +496,14 @@ Documentation Sync:
 
 Completion Gate:
 
-- [ ] Implementation done
-- [ ] Validation passed
-- [ ] Unit tests passed or exception documented
-- [ ] QA quick pass done or exception documented
-- [ ] taskReviewer output captured and any notes tracked
-- [ ] Comments/check comments addressed
-- [ ] Relevant docs in `docs/` updated or exception documented
-- [ ] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
+- [x] Implementation done
+- [x] Validation passed
+- [x] Unit tests passed or exception documented
+- [x] QA quick pass done or exception documented
+- [x] taskReviewer output captured and any notes tracked
+- [x] Comments/check comments addressed
+- [x] Relevant docs in `docs/` updated or exception documented
+- [x] `.github/instructions/projectOverview.instructions.md` synced or N/A documented
 
 Commit Note:
 
@@ -518,57 +518,57 @@ Before marking overall status `Completed`, confirm all of the following:
 
 ### Test Coverage
 
-- [ ] All 25 test cases in `AutoScanAtInitializeTests.cs` pass.
-- [ ] All 161 pre-existing tests continue to pass (0 regressions).
-- [ ] Test 21 explicitly asserts `result.IsAlreadyInitialized == true` on a second call AND `result.IsAlreadyInitialized == false` on a fresh init that returns zero entries.
+- [x] All 25 test cases in `AutoScanAtInitializeTests.cs` pass.
+- [x] All 161 pre-existing tests continue to pass (0 regressions).
+- [x] Test 21 explicitly asserts `result.IsAlreadyInitialized == true` on a second call AND `result.IsAlreadyInitialized == false` on a fresh init that returns zero entries.
 
 ### Public API Correctness
 
-- [ ] `ScanResult.IsAlreadyInitialized` is a public get-only property.
-- [ ] `ScanResult.AlreadyInitialized()` is `internal static` only — not public.
-- [ ] The three new `Initialize` overloads are public and return `ScanResult`.
-- [ ] `DefaultHistoryCapacity` (the constant) is used as the default parameter value in all three new overloads — not a literal.
-- [ ] Existing `Initialize()` and `Initialize(int)` public signatures are identical to before this feature.
+- [x] `ScanResult.IsAlreadyInitialized` is a public get-only property.
+- [x] `ScanResult.AlreadyInitialized()` is `internal static` only — not public.
+- [x] The three new `Initialize` overloads are public and return `ScanResult`.
+- [x] `DefaultHistoryCapacity` (the constant) is used as the default parameter value in all three new overloads — not a literal.
+- [x] Existing `Initialize()` and `Initialize(int)` public signatures are identical to before this feature.
 
 ### Behavioral Correctness
 
-- [ ] `IsAlreadyInitialized == false` by default on all normal (non-no-op) `ScanResult` instances.
-- [ ] `IsAlreadyInitialized == true` only on the already-initialized no-op path.
-- [ ] `HasErrors` is computed solely from `entries` content — unaffected by `IsAlreadyInitialized`.
-- [ ] `RunInitTimeScans` delegates only to `_attributeScanner.ScanType` / `_attributeScanner.ScanAssembly` — no duplicated scan logic.
-- [ ] Null arrays and null items in arrays are silently skipped with no exception.
-- [ ] History capacity is clamped exactly once, inside `InitializeCore` — new overloads do not add a second clamp.
-- [ ] Commands registered via init-time scan are visible in `GetCommandNames()`, `TryGetCommandParameters()`, and `GetSnapshot()` immediately after `Initialize()` returns.
-- [ ] Post-init `Register()`, `RegisterConverter()`, and `Scan()` all function correctly after an init-time scan.
+- [x] `IsAlreadyInitialized == false` by default on all normal (non-no-op) `ScanResult` instances.
+- [x] `IsAlreadyInitialized == true` only on the already-initialized no-op path.
+- [x] `HasErrors` is computed solely from `entries` content — unaffected by `IsAlreadyInitialized`.
+- [x] `RunInitTimeScans` delegates only to `_attributeScanner.ScanType` / `_attributeScanner.ScanAssembly` — no duplicated scan logic.
+- [x] Null arrays and null items in arrays are silently skipped with no exception.
+- [x] History capacity is clamped exactly once, inside `InitializeCore` — new overloads do not add a second clamp.
+- [x] Commands registered via init-time scan are visible in `GetCommandNames()`, `TryGetCommandParameters()`, and `GetSnapshot()` immediately after `Initialize()` returns.
+- [x] Post-init `Register()`, `RegisterConverter()`, and `Scan()` all function correctly after an init-time scan.
 
 ### Non-Functional
 
-- [ ] No LINQ in `RunInitTimeScans`, `InitializeCore`, or any new overload body.
-- [ ] No `UnityEngine` or other engine namespace reference introduced in any `src/` file.
-- [ ] No allocation introduced into the `Execute()` hot path.
-- [ ] All new code in `src/` follows IL2CPP/AOT-safe patterns (no runtime code generation).
+- [x] No LINQ in `RunInitTimeScans`, `InitializeCore`, or any new overload body.
+- [x] No `UnityEngine` or other engine namespace reference introduced in any `src/` file.
+- [x] No allocation introduced into the `Execute()` hot path.
+- [x] All new code in `src/` follows IL2CPP/AOT-safe patterns (no runtime code generation).
 
 ### Documentation
 
-- [ ] `docs/` reflects the three new overload signatures and `IsAlreadyInitialized`.
-- [ ] `.github/instructions/projectOverview.instructions.md` updated with new API surface and current test count.
+- [x] `docs/` reflects the three new overload signatures and `IsAlreadyInitialized`.
+- [x] `.github/instructions/projectOverview.instructions.md` updated with new API surface and current test count.
 
 ### Existing Callers
 
-- [ ] All existing internal `ScanResult` constructor callsites (`new ScanResult(entries)`) compile without change.
-- [ ] All existing `CommandSystem.Initialize()` and `CommandSystem.Initialize(int)` call sites compile and behave identically.
+- [x] All existing internal `ScanResult` constructor callsites (`new ScanResult(entries)`) compile without change.
+- [x] All existing `CommandSystem.Initialize()` and `CommandSystem.Initialize(int)` call sites compile and behave identically.
 
 ---
 
 ## Coverage Check
 
 - Requirements coverage:
-  - [ ] Every requirement is mapped to at least one task
-  - [ ] No requirement is left unplanned
+  - [x] Every requirement is mapped to at least one task
+  - [x] No requirement is left unplanned
 
 - Design coverage:
-  - [ ] Key design components are mapped to tasks
-  - [ ] Critical design constraints are represented in validation gates
+  - [x] Key design components are mapped to tasks
+  - [x] Critical design constraints are represented in validation gates
 
 ### Requirements-to-Task Mapping
 
@@ -611,3 +611,4 @@ Before marking overall status `Completed`, confirm all of the following:
   - None identified. All requirements and design components are covered by exactly one or more tasks.
   - The design explicitly states `AttributeScanner` is unchanged — confirmed no task modifies it.
   - The design explicitly states `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` are unchanged — confirmed no task modifies the public `Scan` methods.
+
