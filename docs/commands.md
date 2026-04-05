@@ -603,19 +603,19 @@ No-op when the system is not initialized.
 
 ### Lifecycle Behavior
 
-| Event | History state |
-| ----- | ------------- |
-| After `Initialize()` | Empty |
-| After `Execute()` (success) | Entry appended |
-| After `Execute()` (failure) | Unchanged |
-| After `ClearHistory()` | Empty |
-| After `Shutdown()` | Buffer released |
-| After `Shutdown()` + `Initialize()` | Empty |
+| Event                               | History state   |
+| ----------------------------------- | --------------- |
+| After `Initialize()`                | Empty           |
+| After `Execute()` (success)         | Entry appended  |
+| After `Execute()` (failure)         | Unchanged       |
+| After `ClearHistory()`              | Empty           |
+| After `Shutdown()`                  | Buffer released |
+| After `Shutdown()` + `Initialize()` | Empty           |
 
 ### Before `Initialize()` / After `Shutdown()`
 
-| Member | Pre-init / post-shutdown return value |
-| ------ | ------------------------------------- |
-| `HistoryCount` | `0` |
-| `GetHistory()` | `Array.Empty<CommandHistoryEntry>()` |
-| `ClearHistory()` | no-op (does not throw) |
+| Member           | Pre-init / post-shutdown return value |
+| ---------------- | ------------------------------------- |
+| `HistoryCount`   | `0`                                   |
+| `GetHistory()`   | `Array.Empty<CommandHistoryEntry>()`  |
+| `ClearHistory()` | no-op (does not throw)                |

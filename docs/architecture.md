@@ -33,8 +33,8 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                                                                          | Visibility |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Namespace         | Contents                                                                                                                                                                                                                                                  | Visibility |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
 | `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`, `CommandHistoryBuffer`                                                                                                                               | Internal   |
 
