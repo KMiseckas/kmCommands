@@ -479,7 +479,7 @@ namespace kmCommands
 
             if (result.Success)
             {
-                _historyBuffer.Record(commandName, args);
+                _historyBuffer.Record(commandName, args, result.ReturnValue);
             }
 
             return result;

@@ -96,7 +96,8 @@ namespace kmCommands.Core
 
             try
             {
-                definition.Callback(convertedArgs);
+                object returnValue = definition.Callback(convertedArgs);
+                return ExecutionResult.Ok(returnValue);
             }
             catch (Exception ex)
             {
@@ -107,8 +108,6 @@ namespace kmCommands.Core
                         commandName, ex.Message),
                     ex);
             }
-
-            return ExecutionResult.Ok();
         }
     }
 }

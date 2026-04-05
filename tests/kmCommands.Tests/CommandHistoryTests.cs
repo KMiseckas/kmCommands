@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 
 namespace kmCommands.Tests
@@ -21,7 +21,7 @@ namespace kmCommands.Tests
             _system.Shutdown();
         }
 
-        // ── helpers ────────────────────────────────────────────────────────
+        // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private void Register(string name, CommandParameterInfo[] parameters, CommandCallback cb)
         {
@@ -31,10 +31,10 @@ namespace kmCommands.Tests
 
         private void RegisterNoArgs(string name)
         {
-            Register(name, Array.Empty<CommandParameterInfo>(), _ => { });
+            Register(name, Array.Empty<CommandParameterInfo>(), _ => null);
         }
 
-        // ── pre-init / lifecycle ───────────────────────────────────────────
+        // â”€â”€ pre-init / lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void HistoryCount_BeforeInitialize_ReturnsZero()
@@ -78,7 +78,7 @@ namespace kmCommands.Tests
             Assert.That(_system.HistoryCount, Is.EqualTo(0));
         }
 
-        // ── recording behavior ─────────────────────────────────────────────
+        // â”€â”€ recording behavior â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_SuccessfulCommand_IncrementsHistoryCount()
@@ -99,7 +99,7 @@ namespace kmCommands.Tests
         [Test]
         public void Execute_SuccessfulCommand_RecordsCorrectArgs()
         {
-            Register("greet", new[] { new CommandParameterInfo("msg", typeof(string)) }, _ => { });
+            Register("greet", new[] { new CommandParameterInfo("msg", typeof(string)) }, _ => null);
             _system.Execute("greet", new[] { "hello" });
             Assert.That(_system.GetHistory()[0].Args[0], Is.EqualTo("hello"));
         }
@@ -114,24 +114,24 @@ namespace kmCommands.Tests
         [Test]
         public void Execute_ArgumentConversionFailed_DoesNotIncrementHistoryCount()
         {
-            Register("add", new[] { new CommandParameterInfo("n", typeof(int)) }, _ => { });
+            Register("add", new[] { new CommandParameterInfo("n", typeof(int)) }, _ => null);
             _system.Execute("add", new[] { "notanumber" });
             Assert.That(_system.HistoryCount, Is.EqualTo(0));
         }
 
-        // ── argument snapshot independence ─────────────────────────────────
+        // â”€â”€ argument snapshot independence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_MutatingArgsAfterExecute_DoesNotAffectStoredEntry()
         {
-            Register("greet", new[] { new CommandParameterInfo("msg", typeof(string)) }, _ => { });
+            Register("greet", new[] { new CommandParameterInfo("msg", typeof(string)) }, _ => null);
             string[] args = new[] { "original" };
             _system.Execute("greet", args);
             args[0] = "mutated";
             Assert.That(_system.GetHistory()[0].Args[0], Is.EqualTo("original"));
         }
 
-        // ── entry ordering ─────────────────────────────────────────────────
+        // â”€â”€ entry ordering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void GetHistory_MultipleEntries_ReturnsOldestToNewest()
@@ -149,7 +149,7 @@ namespace kmCommands.Tests
             Assert.That(history[2].CommandName, Is.EqualTo("gamma"));
         }
 
-        // ── capacity and eviction ──────────────────────────────────────────
+        // â”€â”€ capacity and eviction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Initialize_CustomCapacity_LimitsBufferSize()
@@ -249,7 +249,7 @@ namespace kmCommands.Tests
             Assert.That(_system.HistoryCount, Is.EqualTo(cap));
         }
 
-        // ── clear ──────────────────────────────────────────────────────────
+        // â”€â”€ clear â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void ClearHistory_ResetsCountToZero()
@@ -279,7 +279,7 @@ namespace kmCommands.Tests
             Assert.That(_system.HistoryCount, Is.EqualTo(1));
         }
 
-        // ── snapshot independence from live buffer ─────────────────────────
+        // â”€â”€ snapshot independence from live buffer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void GetHistory_Snapshot_IsNotAffectedBySubsequentExecute()

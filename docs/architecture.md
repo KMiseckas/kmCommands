@@ -127,10 +127,10 @@ An `internal sealed class` that implements attribute-based discovery and registr
 ### CommandCallback
 
 ```csharp
-public delegate void CommandCallback(object[] args);
+public delegate object CommandCallback(object[] args);
 ```
 
-Arguments are delivered as a pre-converted `object[]`. Each element is typed per the command's parameter signature — cast to the expected type before use.
+Arguments are delivered as a pre-converted `object[]`. Each element is typed per the command's parameter signature — cast to the expected type before use. Return `null` for void commands. Return the command's value for non-void commands (e.g., property getters, non-void instance methods); the value is surfaced via `ExecutionResult.ReturnValue`.
 
 ### CommandParameterInfo
 

@@ -161,15 +161,27 @@ namespace kmCommands.Core
         /// <summary>
         /// Creates an AOT-safe <see cref="CommandCallback"/> delegate for the given method.
         /// Uses <see cref="Delegate.CreateDelegate"/> to bind a strongly-typed intermediate
-        /// delegate at scan time; the zero-parameter path avoids <c>DynamicInvoke</c> entirely.
+        /// delegate at scan time. Handles both void and non-void static methods.
         /// </summary>
         private static CommandCallback BuildCallback(MethodInfo method, ParameterInfo[] reflectedParams)
         {
+            bool isVoid = method.ReturnType == typeof(void);
+
             if (reflectedParams.Length == 0)
             {
-                // Zero-parameter fast path: direct delegate call, no boxing.
-                Action del = (Action)Delegate.CreateDelegate(typeof(Action), method);
-                return _ => del();
+                if (isVoid)
+                {
+                    // Zero-parameter void fast path: direct delegate call, no boxing.
+                    Action del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                    return _ => { del(); return null; };
+                }
+                else
+                {
+                    // Zero-parameter non-void.
+                    Type funcType = typeof(Func<>).MakeGenericType(method.ReturnType);
+                    Delegate del = Delegate.CreateDelegate(funcType, method);
+                    return _ => del.DynamicInvoke(null);
+                }
             }
 
             Type[] paramTypes = new Type[reflectedParams.Length];
@@ -178,12 +190,20 @@ namespace kmCommands.Core
                 paramTypes[i] = reflectedParams[i].ParameterType;
             }
 
-            Type actionType = GetActionDelegateType(paramTypes);
-
-            // Delegate.CreateDelegate preserves the method reference under IL2CPP stripping.
-            // DynamicInvoke on a pre-bound concrete delegate is AOT-safe on Unity 2021+ IL2CPP.
-            Delegate typedDelegate = Delegate.CreateDelegate(actionType, method);
-            return args => typedDelegate.DynamicInvoke(args);
+            if (isVoid)
+            {
+                Type actionType = GetActionDelegateType(paramTypes);
+                // Delegate.CreateDelegate preserves the method reference under IL2CPP stripping.
+                // DynamicInvoke on a pre-bound concrete delegate is AOT-safe on Unity 2021+ IL2CPP.
+                Delegate typedDelegate = Delegate.CreateDelegate(actionType, method);
+                return args => { typedDelegate.DynamicInvoke(args); return null; };
+            }
+            else
+            {
+                Type funcType = GetFuncDelegateType(paramTypes, method.ReturnType);
+                Delegate typedDelegate = Delegate.CreateDelegate(funcType, method);
+                return args => typedDelegate.DynamicInvoke(args);
+            }
         }
 
         /// <summary>
@@ -198,6 +218,30 @@ namespace kmCommands.Core
                 case 2: return typeof(Action<,>).MakeGenericType(paramTypes);
                 case 3: return typeof(Action<,,>).MakeGenericType(paramTypes);
                 case 4: return typeof(Action<,,,>).MakeGenericType(paramTypes);
+                default:
+                    throw new NotSupportedException(
+                        string.Format(
+                            "Commands with {0} parameters are not supported. Maximum is 4.",
+                            paramTypes.Length));
+            }
+        }
+
+        /// <summary>
+        /// Returns the closed generic <c>Func&lt;T..., TReturn&gt;</c> type for the given parameter
+        /// and return types. Supports 1–4 parameters; throws <see cref="NotSupportedException"/> for 5+.
+        /// </summary>
+        private static Type GetFuncDelegateType(Type[] paramTypes, Type returnType)
+        {
+            switch (paramTypes.Length)
+            {
+                case 1:
+                    return typeof(Func<,>).MakeGenericType(paramTypes[0], returnType);
+                case 2:
+                    return typeof(Func<,,>).MakeGenericType(paramTypes[0], paramTypes[1], returnType);
+                case 3:
+                    return typeof(Func<,,,>).MakeGenericType(paramTypes[0], paramTypes[1], paramTypes[2], returnType);
+                case 4:
+                    return typeof(Func<,,,,>).MakeGenericType(paramTypes[0], paramTypes[1], paramTypes[2], paramTypes[3], returnType);
                 default:
                     throw new NotSupportedException(
                         string.Format(

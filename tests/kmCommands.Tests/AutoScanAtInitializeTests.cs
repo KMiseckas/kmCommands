@@ -1,4 +1,4 @@
-// kmCommands (https://github.com/KMiseckas/kmCommands)
+﻿// kmCommands (https://github.com/KMiseckas/kmCommands)
 // Copyright (c) 2026 Klaudijus Miseckas
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
@@ -56,11 +56,11 @@ namespace kmCommands.Tests
         private class FailingTarget
         {
             [Command("autoscan_bad")]
-            public void NonStaticMethod() { }  // non-static → guaranteed scan failure
+            public void NonStaticMethod() { }  // non-static â†’ guaranteed scan failure
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 1–4: basic init and registration
+        // Tests 1â€“4: basic init and registration
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -117,7 +117,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 5–7: idempotency
+        // Tests 5â€“7: idempotency
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -134,7 +134,7 @@ namespace kmCommands.Tests
         public void Initialize_WhenAlreadyInitialized_TypeArray_DoesNotDoubleRegister()
         {
             _system.Initialize(new[] { typeof(BasicScanTarget) });
-            // Second call is a no-op — commands should appear only once.
+            // Second call is a no-op â€” commands should appear only once.
             _system.Initialize(new[] { typeof(BasicScanTarget) });
 
             string[] names = _system.GetCommandNames();
@@ -160,7 +160,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 8–11: empty and null inputs
+        // Tests 8â€“11: empty and null inputs
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -206,7 +206,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 12–14: dev-mode filtering
+        // Tests 12â€“14: dev-mode filtering
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -244,7 +244,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 15–16: result contents
+        // Tests 15â€“16: result contents
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -275,7 +275,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 17–18: discovery APIs reflect init-time scan results
+        // Tests 17â€“18: discovery APIs reflect init-time scan results
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -299,7 +299,7 @@ namespace kmCommands.Tests
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 19–20: post-init Register and Scan still work
+        // Tests 19â€“20: post-init Register and Scan still work
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -310,7 +310,7 @@ namespace kmCommands.Tests
             RegistrationResult reg = _system.Register(
                 "post_init_cmd",
                 Array.Empty<CommandParameterInfo>(),
-                args => { });
+                args => null);
 
             Assert.That(reg.Success, Is.True);
             Assert.That(_system.GetCommandNames(), Does.Contain("post_init_cmd"));
@@ -334,18 +334,18 @@ namespace kmCommands.Tests
         [Test]
         public void Initialize_AlreadyInitialized_IsDistinctFromZeroEntries()
         {
-            // Fresh init with empty array → zero entries, IsAlreadyInitialized == false
+            // Fresh init with empty array â†’ zero entries, IsAlreadyInitialized == false
             ScanResult freshResult = _system.Initialize(new Type[0]);
             Assert.That(freshResult.IsAlreadyInitialized, Is.False);
             Assert.That(freshResult.Entries.Length, Is.EqualTo(0));
 
-            // Second call → already initialized, IsAlreadyInitialized == true
+            // Second call â†’ already initialized, IsAlreadyInitialized == true
             ScanResult noOpResult = _system.Initialize(new Type[0]);
             Assert.That(noOpResult.IsAlreadyInitialized, Is.True);
         }
 
         // ---------------------------------------------------------------------------
-        // Tests 22–23: history capacity
+        // Tests 22â€“23: history capacity
         // ---------------------------------------------------------------------------
 
         [Test]
@@ -384,7 +384,7 @@ namespace kmCommands.Tests
                 new[] { typeof(BasicScanTarget), typeof(DevOnlyTarget) },
                 new ScanOptions { DevMode = true });
 
-            // BasicScanTarget: 2 commands; DevOnlyTarget: 2 commands (dev mode on) → 4 entries
+            // BasicScanTarget: 2 commands; DevOnlyTarget: 2 commands (dev mode on) â†’ 4 entries
             Assert.That(result.Entries.Length, Is.EqualTo(4));
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Threading;
 using kmCommands.Core;
@@ -17,7 +17,7 @@ namespace kmCommands.Tests
             _converter = new ArgumentConverter();
         }
 
-        // ── int ──────────────────────────────────────────────────────────
+        // â”€â”€ int â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryConvert_Int_ValidPositive_ReturnsTrue()
@@ -58,7 +58,7 @@ namespace kmCommands.Tests
             Assert.That(result, Is.False);
         }
 
-        // ── float ─────────────────────────────────────────────────────────
+        // â”€â”€ float â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryConvert_Float_ValidDecimal_ReturnsTrue()
@@ -101,7 +101,7 @@ namespace kmCommands.Tests
             }
         }
 
-        // ── bool ──────────────────────────────────────────────────────────
+        // â”€â”€ bool â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryConvert_Bool_TrueLowercase_ReturnsTrue()
@@ -143,7 +143,7 @@ namespace kmCommands.Tests
             Assert.That(value, Is.Null);
         }
 
-        // ── string ────────────────────────────────────────────────────────
+        // â”€â”€ string â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryConvert_String_AnyInput_AlwaysReturnsTrue()
@@ -161,7 +161,7 @@ namespace kmCommands.Tests
             Assert.That(value, Is.EqualTo(""));
         }
 
-        // ── unsupported type ──────────────────────────────────────────────
+        // â”€â”€ unsupported type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryConvert_UnsupportedType_Double_ReturnsFalse()
@@ -200,7 +200,7 @@ namespace kmCommands.Tests
 
         private static CommandDefinition MakeDefinition(string name)
         {
-            return new CommandDefinition(name, Array.Empty<CommandParameterInfo>(), _ => { }, null);
+            return new CommandDefinition(name, Array.Empty<CommandParameterInfo>(), _ => null, null);
         }
 
         [Test]

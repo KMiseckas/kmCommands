@@ -8,7 +8,7 @@ A command is a named operation that can be invoked at runtime with typed argumen
 | ---------- | ------------------------ | ----------------------------------------------------------------------------- |
 | Name       | `string`                 | Unique identifier. Lookup is case-insensitive.                                |
 | Parameters | `CommandParameterInfo[]` | Ordered list of name + type pairs describing expected arguments.              |
-| Callback   | `CommandCallback`        | Delegate invoked when the command executes. Receives pre-converted arguments. |
+| Callback   | `CommandCallback`        | Delegate invoked when the command executes. Returns `null` for void commands or the return value for non-void commands. |
 
 ## Registering a Command
 
@@ -24,6 +24,7 @@ RegistrationResult result = system.Register(
     args =>
     {
         // your logic here
+        return null; // void commands return null
     },
     "Optional human-readable description of what this command does.");
 
@@ -36,7 +37,7 @@ if (!result.Success)
 Omitting the description argument is valid — the existing 3-argument overload registers the command with a `null` description:
 
 ```csharp
-system.Register("reload_config", Array.Empty<CommandParameterInfo>(), args => { });
+system.Register("reload_config", Array.Empty<CommandParameterInfo>(), args => null);
 ```
 
 ## Parameter Types
@@ -64,6 +65,7 @@ system.Register(
     {
         // no arguments — args is an empty array
         ReloadConfig();
+        return null;
     });
 ```
 
@@ -84,6 +86,7 @@ system.Register(
     {
         int level = (int)args[0];
         LoadLevel(level);
+        return null;
     });
 
 // Execute:
@@ -110,6 +113,7 @@ system.Register(
         int    count  = (int)args[3];
 
         SpawnPrefab(prefab, x, y, count);
+        return null;
     });
 
 // Execute:
@@ -127,6 +131,7 @@ args =>
     int    value = (int)args[1];      // declared as typeof(int)
     float  scale = (float)args[2];    // declared as typeof(float)
     bool   flag  = (bool)args[3];     // declared as typeof(bool)
+    return null; // void command returns null
 }
 ```
 
@@ -185,7 +190,26 @@ if (result.Error == ExecutionError.CallbackThrewException)
 | `CommandNotFound`          | No command registered with that name                 |
 | `ArgumentCountMismatch`    | Wrong number of string tokens                        |
 | `ArgumentConversionFailed` | A token failed to convert to the declared type       |
-| `CallbackThrewException`   | Callback threw an exception — see `result.Exception` |
+| `CallbackThrewException`   | Callback threw an exception — see `result.Exception`      |
+| `InstanceNull`             | The instance bound to an instance command is null or GC'd |
+
+## ExecutionResult Return Value
+
+`ExecutionResult` exposes two additional properties for commands that return a value (e.g., property getters or non-void instance methods):
+
+| Property         | Type     | Description                                                                                    |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `ReturnValue`    | `object` | The boxed return value from the callback, or `null` for void commands and failed executions.   |
+| `HasReturnValue` | `bool`   | `true` when `ReturnValue` is non-null (i.e., the callback returned a value). `false` otherwise.|
+
+For void commands, `ReturnValue` is always `null` and `HasReturnValue` is `false`:
+
+```csharp
+ExecutionResult result = system.Execute("reload_config", null);
+// result.ReturnValue == null, result.HasReturnValue == false
+```
+
+Return values are also captured in `CommandHistoryEntry.ReturnValue`.
 
 ## Organizing Command Registration
 

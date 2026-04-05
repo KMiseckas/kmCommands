@@ -1,4 +1,4 @@
-// kmCommands (https://github.com/KMiseckas/kmCommands)
+﻿// kmCommands (https://github.com/KMiseckas/kmCommands)
 // Copyright (c) 2026 Klaudijus Miseckas
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
@@ -29,7 +29,7 @@ namespace kmCommands.Tests
             }
         }
 
-        // ── support: inner scan targets ──────────────────────────────────
+        // â”€â”€ support: inner scan targets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static class ScanTargets
         {
@@ -40,12 +40,12 @@ namespace kmCommands.Tests
             public static void NoDescCommand() { }
         }
 
-        // ── AC #1: manual register with non-null description ─────────────
+        // â”€â”€ AC #1: manual register with non-null description â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_WithNonNullDescription_SnapshotContainsDescription()
         {
-            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => { }, "Describes cmd");
+            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => null, "Describes cmd");
 
             CommandMetadataSnapshot snapshot = _system.GetSnapshot();
             bool found = snapshot.TryGetDescription("cmd", out string desc);
@@ -54,12 +54,12 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.EqualTo("Describes cmd"));
         }
 
-        // ── AC #2: manual register without description ───────────────────
+        // â”€â”€ AC #2: manual register without description â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_WithoutDescription_SnapshotDescriptionIsNull()
         {
-            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => { });
+            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => null);
 
             CommandMetadataSnapshot snapshot = _system.GetSnapshot();
             bool found = snapshot.TryGetDescription("cmd", out string desc);
@@ -68,12 +68,12 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.Null);
         }
 
-        // ── AC #3: manual register with empty-string description ─────────
+        // â”€â”€ AC #3: manual register with empty-string description â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_WithEmptyStringDescription_SnapshotDescriptionIsEmptyString()
         {
-            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => { }, "");
+            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => null, "");
 
             CommandMetadataSnapshot snapshot = _system.GetSnapshot();
             bool found = snapshot.TryGetDescription("cmd", out string desc);
@@ -82,7 +82,7 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.EqualTo(""));
         }
 
-        // ── AC #4: attribute registration with description ───────────────
+        // â”€â”€ AC #4: attribute registration with description â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Scan_AttributeWithDescription_SnapshotContainsDescription()
@@ -96,7 +96,7 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.EqualTo("A described command"));
         }
 
-        // ── AC #5: attribute registration without description ────────────
+        // â”€â”€ AC #5: attribute registration without description â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Scan_AttributeWithoutDescription_SnapshotDescriptionIsNull()
@@ -110,12 +110,12 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.Null);
         }
 
-        // ── AC #6: case-insensitive snapshot lookup ───────────────────────
+        // â”€â”€ AC #6: case-insensitive snapshot lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryGetDescription_ExistingCommandWithDescription_CaseInsensitiveLookup()
         {
-            _system.Register("MyCmd", Array.Empty<CommandParameterInfo>(), _ => { }, "Help text");
+            _system.Register("MyCmd", Array.Empty<CommandParameterInfo>(), _ => null, "Help text");
 
             CommandMetadataSnapshot snapshot = _system.GetSnapshot();
 
@@ -126,12 +126,12 @@ namespace kmCommands.Tests
             Assert.That(upper, Is.EqualTo("Help text"));
         }
 
-        // ── AC #7: null description returns false ─────────────────────────
+        // â”€â”€ AC #7: null description returns false â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryGetDescription_CommandWithNullDescription_ReturnsFalse()
         {
-            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => { }, null);
+            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => null, null);
 
             CommandMetadataSnapshot snapshot = _system.GetSnapshot();
             bool found = snapshot.TryGetDescription("cmd", out string desc);
@@ -140,7 +140,7 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.Null);
         }
 
-        // ── AC #8: Empty singleton returns false ──────────────────────────
+        // â”€â”€ AC #8: Empty singleton returns false â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Empty_TryGetDescription_ReturnsFalseWithNullDescription()
@@ -153,15 +153,15 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.Null);
         }
 
-        // ── AC #9: snapshot isolation ─────────────────────────────────────
+        // â”€â”€ AC #9: snapshot isolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void SnapshotIsolation_DescriptionNotIncludedForLaterRegisteredCommand()
         {
-            _system.Register("first", Array.Empty<CommandParameterInfo>(), _ => { }, "First desc");
+            _system.Register("first", Array.Empty<CommandParameterInfo>(), _ => null, "First desc");
             CommandMetadataSnapshot snapshotBefore = _system.GetSnapshot();
 
-            _system.Register("second", Array.Empty<CommandParameterInfo>(), _ => { }, "Second desc");
+            _system.Register("second", Array.Empty<CommandParameterInfo>(), _ => null, "Second desc");
 
             // Snapshot taken before 'second' was registered must not contain 'second'.
             bool found = snapshotBefore.TryGetDescription("second", out string desc);

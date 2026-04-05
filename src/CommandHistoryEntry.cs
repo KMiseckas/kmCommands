@@ -23,15 +23,23 @@ namespace kmCommands
         public string[] Args { get; }
 
         /// <summary>
-        /// Initializes a new <see cref="CommandHistoryEntry"/> with the given command name and
-        /// argument snapshot. The caller is responsible for passing an already-copied args array.
+        /// The return value from the command execution, or <c>null</c> for void commands.
+        /// </summary>
+        public object ReturnValue { get; }
+
+        /// <summary>
+        /// Initializes a new <see cref="CommandHistoryEntry"/> with the given command name,
+        /// argument snapshot, and optional return value. The caller is responsible for passing an
+        /// already-copied args array.
         /// </summary>
         /// <param name="commandName">The command name as passed to <see cref="CommandSystem.Execute"/>.</param>
         /// <param name="args">A pre-copied, non-null snapshot of the argument tokens.</param>
-        internal CommandHistoryEntry(string commandName, string[] args)
+        /// <param name="returnValue">The return value from the callback, or <c>null</c> for void commands.</param>
+        internal CommandHistoryEntry(string commandName, string[] args, object returnValue)
         {
             CommandName = commandName;
             Args = args;
+            ReturnValue = returnValue;
         }
     }
 }

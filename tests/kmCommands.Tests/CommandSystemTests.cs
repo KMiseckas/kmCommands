@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 
 namespace kmCommands.Tests
@@ -77,7 +77,7 @@ namespace kmCommands.Tests
             RegistrationResult result = _system.Register(
                 "foo",
                 Array.Empty<CommandParameterInfo>(),
-                _ => { });
+                _ => null);
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(RegistrationError.NotInitialized));
@@ -114,7 +114,7 @@ namespace kmCommands.Tests
             => Array.Empty<CommandParameterInfo>();
 
         private static CommandCallback NoOp()
-            => _ => { };
+            => _ => null;
 
         [Test]
         public void Register_ValidCommand_Succeeds()
@@ -201,7 +201,7 @@ namespace kmCommands.Tests
             _system.Shutdown();
             _system.Initialize();
 
-            // "foo" should no longer be registered — registering again should succeed
+            // "foo" should no longer be registered â€” registering again should succeed
             RegistrationResult result = _system.Register("foo", NoParams(), NoOp());
             Assert.That(result.Success, Is.True);
         }

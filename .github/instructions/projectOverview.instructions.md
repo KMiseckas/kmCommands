@@ -128,11 +128,11 @@ The `src/` structure currently implements:
 - `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, and `RegisterConverter` with `_pendingConverters` pre-init buffer
 - `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
 - `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
-- `src/CommandCallback.cs` — public `CommandCallback` delegate
+- `src/CommandCallback.cs` — public `CommandCallback` delegate; signature `object(object[] args)`; return `null` for void commands
 - `src/TypeConverterDelegate.cs` — public `TypeConverterDelegate` delegate; signature `bool(string input, out object result)`
 - `src/CommandParameterInfo.cs` — public parameter descriptor
 - `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`, `NullConverter`)
-- `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum
+- `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum (includes `InstanceNull`); `ReturnValue` (object) and `HasReturnValue` (bool) properties on success; `Ok(object returnValue = null)` factory
 - `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct; `ScanResult` exposes `IsAlreadyInitialized` (bool) public property and `AlreadyInitialized()` internal factory; internal constructor has optional `bool isAlreadyInitialized = false` parameter.
 - `src/Core/CommandDefinition.cs` — internal command storage model
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
@@ -140,7 +140,7 @@ The `src/` structure currently implements:
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator
 - `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.
-- `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct; internal constructor; `CommandName` and `Args` get-only properties; args snapshot never null.
-- `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class; fixed-size ring buffer; `Record()`, `GetSnapshot()` (oldest→newest), `Clear()`, `Count`.
+- `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct; internal constructor; `CommandName`, `Args`, and `ReturnValue` get-only properties; args snapshot never null.
+- `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class; fixed-size ring buffer; `Record(name, args, returnValue)`, `GetSnapshot()` (oldest→newest), `Clear()`, `Count`.
 
 Adjust only with explicit design updates.

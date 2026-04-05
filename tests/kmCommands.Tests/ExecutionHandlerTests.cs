@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using kmCommands.Core;
 using NUnit.Framework;
 
@@ -19,7 +19,7 @@ namespace kmCommands.Tests
             _handler = new ExecutionHandler(_registry, _converter);
         }
 
-        // ── helpers ────────────────────────────────────────────────────────
+        // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private void RegisterNoArgs(string name, CommandCallback callback)
         {
@@ -35,7 +35,7 @@ namespace kmCommands.Tests
             _registry.TryRegister(new CommandDefinition(name, parameters, callback, null));
         }
 
-        // ── null / empty command name ───────────────────────────────────────
+        // â”€â”€ null / empty command name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_NullCommandName_ReturnsNullOrEmptyCommandName()
@@ -53,7 +53,7 @@ namespace kmCommands.Tests
             Assert.That(result.Error, Is.EqualTo(ExecutionError.NullOrEmptyCommandName));
         }
 
-        // ── command not found ──────────────────────────────────────────────
+        // â”€â”€ command not found â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_UnknownCommand_ReturnsCommandNotFound()
@@ -64,7 +64,7 @@ namespace kmCommands.Tests
             Assert.That(result.ErrorMessage, Does.Contain("nonexistent"));
         }
 
-        // ── argument count mismatch ────────────────────────────────────────
+        // â”€â”€ argument count mismatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_TooFewArgs_ReturnsArgumentCountMismatch()
@@ -73,7 +73,7 @@ namespace kmCommands.Tests
             {
                 new CommandParameterInfo("x", typeof(int)),
                 new CommandParameterInfo("y", typeof(int))
-            }, _ => { });
+            }, _ => null);
 
             ExecutionResult result = _handler.Execute("cmd", new[] { "1" });
             Assert.That(result.Success, Is.False);
@@ -84,14 +84,14 @@ namespace kmCommands.Tests
         [Test]
         public void Execute_TooManyArgs_ReturnsArgumentCountMismatch()
         {
-            RegisterNoArgs("cmd", _ => { });
+            RegisterNoArgs("cmd", _ => null);
 
             ExecutionResult result = _handler.Execute("cmd", new[] { "extra" });
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(ExecutionError.ArgumentCountMismatch));
         }
 
-        // ── argument conversion failure ────────────────────────────────────
+        // â”€â”€ argument conversion failure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_WrongArgType_ReturnsArgumentConversionFailed()
@@ -99,7 +99,7 @@ namespace kmCommands.Tests
             RegisterWithParams("cmd", new[]
             {
                 new CommandParameterInfo("count", typeof(int))
-            }, _ => { });
+            }, _ => null);
 
             ExecutionResult result = _handler.Execute("cmd", new[] { "notanumber" });
             Assert.That(result.Success, Is.False);
@@ -107,7 +107,7 @@ namespace kmCommands.Tests
             Assert.That(result.ErrorMessage, Does.Contain("count").And.Contain("0"));
         }
 
-        // ── callback throws ────────────────────────────────────────────────
+        // â”€â”€ callback throws â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_CallbackThrows_ReturnsCallbackThrewException()
@@ -121,13 +121,13 @@ namespace kmCommands.Tests
             Assert.That(result.Exception.Message, Is.EqualTo("test error"));
         }
 
-        // ── success paths ──────────────────────────────────────────────────
+        // â”€â”€ success paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_ZeroArgCommand_NullArgs_Succeeds()
         {
             bool invoked = false;
-            RegisterNoArgs("quit", _ => { invoked = true; });
+            RegisterNoArgs("quit", _ => { invoked = true; return null; });
 
             ExecutionResult result = _handler.Execute("quit", null);
             Assert.That(result.Success, Is.True);
@@ -138,7 +138,7 @@ namespace kmCommands.Tests
         public void Execute_ZeroArgCommand_EmptyArray_Succeeds()
         {
             bool invoked = false;
-            RegisterNoArgs("quit", _ => { invoked = true; });
+            RegisterNoArgs("quit", _ => { invoked = true; return null; });
 
             ExecutionResult result = _handler.Execute("quit", Array.Empty<string>());
             Assert.That(result.Success, Is.True);
@@ -165,6 +165,7 @@ namespace kmCommands.Tests
                 capturedInt = (int)args[1];
                 capturedFloat = (float)args[2];
                 capturedBool = (bool)args[3];
+                return null;
             });
 
             ExecutionResult result = _handler.Execute("cmd", new[] { "hero", "42", "1.5", "true" });
@@ -180,7 +181,7 @@ namespace kmCommands.Tests
         public void Execute_CaseInsensitiveName_Succeeds()
         {
             bool invoked = false;
-            RegisterNoArgs("SetDamage", _ => { invoked = true; });
+            RegisterNoArgs("SetDamage", _ => { invoked = true; return null; });
 
             ExecutionResult lower = _handler.Execute("setdamage", null);
             Assert.That(lower.Success, Is.True);

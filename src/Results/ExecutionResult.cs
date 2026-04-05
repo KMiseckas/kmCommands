@@ -31,7 +31,13 @@ namespace kmCommands
         ArgumentConversionFailed,
 
         /// <summary>The command's callback delegate threw an unhandled exception during execution.</summary>
-        CallbackThrewException
+        CallbackThrewException,
+
+        /// <summary>
+        /// The instance bound to this command is null or has been garbage collected.
+        /// Call <c>UnregisterInstance</c> to clean up stale commands.
+        /// </summary>
+        InstanceNull
     }
 
     /// <summary>
@@ -64,20 +70,38 @@ namespace kmCommands
         /// </summary>
         public Exception Exception { get; }
 
-        private ExecutionResult(bool success, ExecutionError error, string errorMessage, Exception exception)
+        /// <summary>
+        /// The return value produced by the command callback, or <c>null</c> for void commands.
+        /// Only meaningful when <see cref="Success"/> is <c>true</c>.
+        /// </summary>
+        public object ReturnValue { get; }
+
+        /// <summary>
+        /// <c>true</c> when the callback produced a non-null return value.
+        /// </summary>
+        public bool HasReturnValue { get; }
+
+        private ExecutionResult(bool success, ExecutionError error, string errorMessage, Exception exception,
+            object returnValue = null, bool hasReturnValue = false)
         {
             Success = success;
             Error = error;
             ErrorMessage = errorMessage;
             Exception = exception;
+            ReturnValue = returnValue;
+            HasReturnValue = hasReturnValue;
         }
 
         /// <summary>
         /// Creates a successful execution result.
         /// </summary>
-        internal static ExecutionResult Ok()
+        /// <param name="returnValue">
+        /// The return value from the callback, or <c>null</c> for void commands.
+        /// </param>
+        internal static ExecutionResult Ok(object returnValue = null)
         {
-            return new ExecutionResult(true, ExecutionError.None, null, null);
+            return new ExecutionResult(true, ExecutionError.None, null, null,
+                returnValue, returnValue != null);
         }
 
         /// <summary>

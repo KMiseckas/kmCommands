@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 
 namespace kmCommands.Tests
@@ -24,11 +24,11 @@ namespace kmCommands.Tests
             }
         }
 
-        // ── helpers ───────────────────────────────────────────────────────
+        // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private void Register(string name, CommandParameterInfo[] parameters)
         {
-            RegistrationResult r = _system.Register(name, parameters, args => { });
+            RegistrationResult r = _system.Register(name, parameters, args => null);
             Assert.That(r.Success, Is.True,
                 string.Format("Setup: Failed to register '{0}': {1}", name, r.ErrorMessage));
         }
@@ -38,7 +38,7 @@ namespace kmCommands.Tests
             Register(name, Array.Empty<CommandParameterInfo>());
         }
 
-        // ── GetCommandNames ───────────────────────────────────────────────
+        // â”€â”€ GetCommandNames â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void GetCommandNames_BeforeInit_ReturnsEmptyArray()
@@ -96,7 +96,7 @@ namespace kmCommands.Tests
             Assert.That(names, Is.Empty);
         }
 
-        // ── TryGetCommandParameters ───────────────────────────────────────
+        // â”€â”€ TryGetCommandParameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void TryGetCommandParameters_BeforeInit_ReturnsFalse()
@@ -183,7 +183,7 @@ namespace kmCommands.Tests
             Assert.That(parameters, Is.Null);
         }
 
-        // ── GetSnapshot ───────────────────────────────────────────────────
+        // â”€â”€ GetSnapshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void GetSnapshot_BeforeInit_ReturnsEmptySnapshot()

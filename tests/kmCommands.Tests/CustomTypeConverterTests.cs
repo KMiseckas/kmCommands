@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 
 namespace kmCommands.Tests
@@ -30,7 +30,7 @@ namespace kmCommands.Tests
             }
         }
 
-        // ── helper ─────────────────────────────────────────────────────────
+        // â”€â”€ helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         /// <summary>Parses "x,y" into a Vector2Custom.</summary>
         private static bool TryParseVector2(string input, out object result)
@@ -50,7 +50,7 @@ namespace kmCommands.Tests
             return false;
         }
 
-        // ── happy path ─────────────────────────────────────────────────────
+        // â”€â”€ happy path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_CustomType_AllowsCommandWithThatType()
@@ -62,7 +62,7 @@ namespace kmCommands.Tests
             RegistrationResult reg = _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { captured = (Vector2Custom)args[0]; });
+                args => { captured = (Vector2Custom)args[0]; return null; });
 
             Assert.That(reg.Success, Is.True, reg.ErrorMessage);
 
@@ -72,7 +72,7 @@ namespace kmCommands.Tests
             Assert.That(captured.Y, Is.EqualTo(4.5f).Within(0.001f));
         }
 
-        // ── null-input guards ──────────────────────────────────────────────
+        // â”€â”€ null-input guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_NullType_ReturnsFailure()
@@ -90,7 +90,7 @@ namespace kmCommands.Tests
             Assert.That(result.Error, Is.EqualTo(RegistrationError.NullConverter));
         }
 
-        // ── override built-in ──────────────────────────────────────────────
+        // â”€â”€ override built-in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_OverridesBuiltIn_UsesNewConverter()
@@ -107,14 +107,14 @@ namespace kmCommands.Tests
             _system.Register(
                 "val",
                 new[] { new CommandParameterInfo("n", typeof(int)) },
-                args => { captured = (int)args[0]; });
+                args => { captured = (int)args[0]; return null; });
 
             ExecutionResult exec = _system.Execute("val", new[] { "1" });
             Assert.That(exec.Success, Is.True, exec.ErrorMessage);
             Assert.That(captured, Is.EqualTo(99));
         }
 
-        // ── lifecycle: pre-Initialize ──────────────────────────────────────
+        // â”€â”€ lifecycle: pre-Initialize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_BeforeInitialize_SurvivesInitialize()
@@ -125,7 +125,7 @@ namespace kmCommands.Tests
             RegistrationResult reg = _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { });
+                args => null);
 
             Assert.That(reg.Success, Is.True, reg.ErrorMessage);
 
@@ -133,7 +133,7 @@ namespace kmCommands.Tests
             Assert.That(exec.Success, Is.True, exec.ErrorMessage);
         }
 
-        // ── lifecycle: Shutdown clears ─────────────────────────────────────
+        // â”€â”€ lifecycle: Shutdown clears â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Shutdown_ClearsCustomConverters()
@@ -148,13 +148,13 @@ namespace kmCommands.Tests
             RegistrationResult reg = _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { });
+                args => null);
 
             Assert.That(reg.Success, Is.False);
             Assert.That(reg.Error, Is.EqualTo(RegistrationError.UnsupportedParameterType));
         }
 
-        // ── unsupported type ───────────────────────────────────────────────
+        // â”€â”€ unsupported type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_WithNoConverter_RejectsCommand()
@@ -164,13 +164,13 @@ namespace kmCommands.Tests
             RegistrationResult reg = _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { });
+                args => null);
 
             Assert.That(reg.Success, Is.False);
             Assert.That(reg.Error, Is.EqualTo(RegistrationError.UnsupportedParameterType));
         }
 
-        // ── failing converter ──────────────────────────────────────────────
+        // â”€â”€ failing converter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_FailingCustomConverter_ReturnsConversionFailed()
@@ -185,14 +185,14 @@ namespace kmCommands.Tests
             _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { });
+                args => null);
 
             ExecutionResult exec = _system.Execute("move", new[] { "bad" });
             Assert.That(exec.Success, Is.False);
             Assert.That(exec.Error, Is.EqualTo(ExecutionError.ArgumentConversionFailed));
         }
 
-        // ── pre-init multiple converters ───────────────────────────────────
+        // â”€â”€ pre-init multiple converters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_PreInit_MultipleConverters_AllFlushed()
@@ -213,18 +213,18 @@ namespace kmCommands.Tests
             RegistrationResult regV2 = _system.Register(
                 "move",
                 new[] { new CommandParameterInfo("pos", typeof(Vector2Custom)) },
-                args => { });
+                args => null);
 
             RegistrationResult regGuid = _system.Register(
                 "setId",
                 new[] { new CommandParameterInfo("id", typeof(Guid)) },
-                args => { });
+                args => null);
 
             Assert.That(regV2.Success, Is.True, regV2.ErrorMessage);
             Assert.That(regGuid.Success, Is.True, regGuid.ErrorMessage);
         }
 
-        // ── pre-init last-write-wins ───────────────────────────────────────
+        // â”€â”€ pre-init last-write-wins â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void RegisterConverter_PreInit_Override_LastWriteWins()
@@ -236,7 +236,7 @@ namespace kmCommands.Tests
                 return true;
             });
 
-            // Second registration always returns 2 — must win
+            // Second registration always returns 2 â€” must win
             _system.RegisterConverter(typeof(int), (string input, out object result) =>
             {
                 result = 2;
@@ -249,7 +249,7 @@ namespace kmCommands.Tests
             _system.Register(
                 "val",
                 new[] { new CommandParameterInfo("n", typeof(int)) },
-                args => { captured = (int)args[0]; });
+                args => { captured = (int)args[0]; return null; });
 
             ExecutionResult exec = _system.Execute("val", new[] { "anything" });
             Assert.That(exec.Success, Is.True, exec.ErrorMessage);
