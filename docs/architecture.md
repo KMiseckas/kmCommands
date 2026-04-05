@@ -15,26 +15,28 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
               ▼
 ┌─────────────────────────────────────────────────────┐
 │                  CommandSystem                      │
-│  Initialize() / Shutdown()                          │
+│  Initialize() / Initialize(historyCapacity)         │
+│  Shutdown()                                         │
 │  Register(name, parameters, callback)               │
 │  Register(name, parameters, callback, description)  │
 │  Execute(commandName, args)                         │
 │  Scan(type, options) / Scan(assembly, options)      │
-└──────┬──────────────┬───────────────┬───────────────┬───────────────┘
-       │              │               │               │  (kmCommands.Core namespace)
-       ▼              ▼               ▼               ▼
-┌────────────┐ ┌──────────────┐ ┌────────────────┐ ┌──────────────────┐
-│  Command   │ │  Argument    │ │  Execution     │ │  Attribute       │
-│  Registry  │ │  Converter   │ │  Handler       │ │  Scanner         │
-└────────────┘ └──────────────┘ └────────────────┘ └──────────────────┘
+│  GetHistory() / HistoryCount / ClearHistory()       │
+└──────┬──────────────┬───────────────┬───────────────┬───────────────┬───────────────┘
+       │              │               │               │               │  (kmCommands.Core namespace)
+       ▼              ▼               ▼               ▼               ▼
+┌────────────┐ ┌──────────────┐ ┌────────────────┐ ┌──────────────────┐ ┌──────────────────────┐
+│  Command   │ │  Argument    │ │  Execution     │ │  Attribute       │ │  Command History     │
+│  Registry  │ │  Converter   │ │  Handler       │ │  Scanner         │ │  Buffer              │
+└────────────┘ └──────────────┘ └────────────────┘ └──────────────────┘ └──────────────────────┘
 ```
 
 ## Namespaces
 
 | Namespace         | Contents                                                                                                                                                                                                                                          | Visibility |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`                                                                                                                                               | Internal   |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`, `CommandHistoryBuffer`                                                                                                                               | Internal   |
 
 ## Components
 
@@ -42,9 +44,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 The public entry point. The consumer creates an instance, calls `Initialize()`, then uses `Register`, `Execute`, and `RegisterConverter`. `Shutdown()` clears all state and allows re-initialization.
 
-- **Lifecycle:** Idempotent `Initialize()` and `Shutdown()`. Calling either method multiple times or out of order is safe.
-- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`. All are nulled on `Shutdown()`.
+- **Lifecycle:** Idempotent `Initialize()` / `Initialize(int historyCapacity)` and `Shutdown()`. Calling either method multiple times or out of order is safe.
+- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`. All are nulled on `Shutdown()`.
 - **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
+- **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` accepts an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry
