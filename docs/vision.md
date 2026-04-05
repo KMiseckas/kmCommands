@@ -69,7 +69,6 @@ Internal store for all registered command definitions.
 Register commands using C# attributes on static methods — no manual `Register()` calls needed.
 
 - [x] Define attribute (`[Command("name")]`)
-- [x] Scan a target type or assembly at `Initialize()`
 - [x] Auto-map method parameters to `CommandParameterInfo`
 - [x] Skip unsupported parameter types gracefully
 - [x] AOT/IL2CPP safe (no runtime codegen)
@@ -81,17 +80,48 @@ Register commands using C# attributes on static methods — no manual `Register(
 
 ---
 
+### 🔲 Auto-Scan at Initialize
+
+Allow consumers to declare scan targets (types or assemblies) at `Initialize()` time so that attribute-based registration runs automatically during startup — removing the need for explicit follow-up `Scan()` calls in consumer bootstrap code.
+
+- [ ] `Initialize(Type[])` and `Initialize(Assembly[])` overloads (or a combined overload) that accept scan targets alongside the optional history capacity
+- [ ] Scan results from init-time scanning available for inspection after `Initialize()` returns
+- [ ] Compatible with subsequent manual `Register()` and explicit `Scan()` calls after init
+- [ ] Dev-mode opt-in via `ScanOptions` passed alongside scan targets at init time
+
+---
+
 ### ✅ Command History
 
-Maintain an in-memory ring buffer of executed commands, results, and system events. An injectable adapter interface lets consumers optionally persist history to any sink (file, network, etc.) without coupling the core to `System.IO`.
+Maintain an in-memory ring buffer of successfully executed commands for consumer inspection.
 
 - [x] In-memory ring buffer with configurable max entry count
-- [x] Entries record: timestamp, raw input string, resolved command name, result status, error detail
-- [x] Consumer reads buffer via a history API (e.g. `GetHistory()`, paged or full)
-- [x] Injectable `IHistoryWriter` adapter — library calls it on each entry append; no I/O without an injected implementation
-- [x] Adapter is optional — library works fully without one; missing adapter is never an error
-- [x] Buffer capacity and adapter are configurable at `Initialize()`
-- [x] Unity layer implements `IHistoryWriter` for file logging, Editor console forwarding, network sinks, etc.
+- [x] Consumer reads buffer via history API (`GetHistory()`, `HistoryCount`, `ClearHistory()`)
+- [x] Buffer capacity configurable at `Initialize(int historyCapacity)`; clamped to ≥ 1
+- [x] `DefaultHistoryCapacity` constant (64) used by no-arg `Initialize()`
+
+---
+
+### 🔲 Rich History Entries
+
+Extend `CommandHistoryEntry` to record richer execution context beyond the current command name and argument snapshot.
+
+- [ ] Timestamp (UTC) recorded at execution time
+- [ ] Raw input string as originally passed to `Execute()`, before any processing
+- [ ] Result status (success or the specific `ExecutionError` value)
+- [ ] Error detail string when execution fails
+
+---
+
+### 🔲 History Writer Adapter
+
+An injectable `IHistoryWriter` adapter interface that lets consumers forward history entries to any external sink without coupling the core library to `System.IO`.
+
+- [ ] Define `IHistoryWriter` interface with a single `Write(CommandHistoryEntry entry)` method
+- [ ] Library calls `IHistoryWriter.Write()` on each entry append; no I/O without an injected implementation
+- [ ] Adapter is optional — library works fully without one; missing or null adapter is never an error
+- [ ] Adapter injectable at `Initialize()` time alongside capacity configuration
+- [ ] Unity layer implements `IHistoryWriter` for file logging, Editor console forwarding, network sinks, etc.
 
 ---
 
