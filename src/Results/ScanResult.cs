@@ -3,6 +3,8 @@
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
 
+using System;
+
 namespace kmCommands
 {
     /// <summary>
@@ -47,9 +49,17 @@ namespace kmCommands
         /// </summary>
         public bool HasErrors { get; }
 
-        internal ScanResult(ScanEntry[] entries)
+        /// <summary>
+        /// <c>true</c> when this result was returned because <see cref="CommandSystem"/>
+        /// was already initialized; the scan was not run. Distinct from a successful scan
+        /// that found zero commands (<c>Entries.Length == 0</c>, <c>IsAlreadyInitialized == false</c>).
+        /// </summary>
+        public bool IsAlreadyInitialized { get; }
+
+        internal ScanResult(ScanEntry[] entries, bool isAlreadyInitialized = false)
         {
             Entries = entries;
+            IsAlreadyInitialized = isAlreadyInitialized;
             bool hasErrors = false;
             for (int i = 0; i < entries.Length; i++)
             {
@@ -73,5 +83,12 @@ namespace kmCommands
                 new ScanEntry(string.Empty, RegistrationResult.Fail(error, message))
             });
         }
+
+        /// <summary>
+        /// Creates a <see cref="ScanResult"/> indicating that initialization was already complete
+        /// and no scan was performed.
+        /// </summary>
+        internal static ScanResult AlreadyInitialized()
+            => new ScanResult(Array.Empty<ScanEntry>(), isAlreadyInitialized: true);
     }
 }
