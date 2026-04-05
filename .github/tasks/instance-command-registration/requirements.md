@@ -64,7 +64,7 @@ This feature also introduces **return value support** across the command system:
 ### Return Values
 
 - `ExecutionResult` gains a field (or property) to hold an optional boxed return value, populated when a command callback produces a return value.
-- `CommandHistoryEntry` gains a field to capture the return value from the execution that produced the entry.  
+- `CommandHistoryEntry` gains a field to capture the return value from the execution that produced the entry.
 - For void methods and setter commands, the return value field is `null` / a sentinel "no value" representation.
 - The return value is boxed (one allocation per returned value) — acceptable since this is not a hot path.
 - Existing `ExecutionResult` consumers that do not read the new field are unaffected in behaviour.
