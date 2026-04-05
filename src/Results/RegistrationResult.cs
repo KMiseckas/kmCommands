@@ -38,7 +38,10 @@ namespace kmCommands
         /// An optional parameter (one with a default value) appears before a required parameter
         /// in the command's parameter list. All optional parameters must trail all required parameters.
         /// </summary>
-        OptionalParameterBeforeRequired
+        OptionalParameterBeforeRequired,
+
+        /// <summary>The provided converter delegate was null.</summary>
+        NullConverter
     }
 
     /// <summary>

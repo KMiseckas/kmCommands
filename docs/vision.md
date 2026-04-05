@@ -137,13 +137,13 @@ Allow commands to declare parameters as optional with a declared fallback value.
 
 ---
 
-### 🔲 Custom Type Converters
+### ✅ Custom Type Converters
 
 Allow consumers to register converters for types beyond the built-in set.
 
-- [ ] API to register a custom converter for a `System.Type`
-- [ ] Custom converters extend or override built-ins
-- [ ] Consistent error reporting when conversion fails
+- [x] API to register a custom converter for a `System.Type`
+- [x] Custom converters extend or override built-ins
+- [x] Consistent error reporting when conversion fails
 
 ---
 

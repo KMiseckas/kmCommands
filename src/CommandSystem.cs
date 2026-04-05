@@ -4,6 +4,7 @@
 // See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using kmCommands.Core;
 
@@ -29,6 +30,8 @@ namespace kmCommands
         private ArgumentConverter _converter;
         private ExecutionHandler _executionHandler;
         private AttributeScanner _attributeScanner;
+        private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
+            = new Dictionary<Type, TypeConverterDelegate>();
 
         /// <summary>
         /// Gets a value indicating whether the system has been initialized.
@@ -49,6 +52,13 @@ namespace kmCommands
             _converter = new ArgumentConverter();
             _executionHandler = new ExecutionHandler(_registry, _converter);
             _attributeScanner = new AttributeScanner(_registry, _converter);
+
+            foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
+            {
+                _converter.AddConverter(entry.Key, AdaptConverter(entry.Value));
+            }
+
+            _pendingConverters.Clear();
             IsInitialized = true;
         }
 
@@ -67,7 +77,67 @@ namespace kmCommands
             _converter = null;
             _executionHandler = null;
             _attributeScanner = null;
+            _pendingConverters.Clear();
             IsInitialized = false;
+        }
+
+        /// <summary>
+        /// Registers a custom type converter for the specified type.
+        /// If a converter for <paramref name="type"/> is already registered (built-in or custom),
+        /// the new converter replaces it (last-write wins).
+        /// </summary>
+        /// <remarks>
+        /// Converters registered before <see cref="Initialize"/> is called are buffered and flushed
+        /// into the argument-conversion pipeline when <see cref="Initialize"/> runs.
+        /// <see cref="Shutdown"/> clears all custom converters. Re-registering after a new
+        /// <see cref="Initialize"/> cycle is supported.
+        /// </remarks>
+        /// <param name="type">
+        /// The <see cref="System.Type"/> that this converter handles. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="converter">
+        /// The converter delegate. Must not be <c>null</c>.
+        /// </param>
+        /// <returns>
+        /// A <see cref="RegistrationResult"/> indicating success or the specific failure reason.
+        /// Returns failure with <see cref="RegistrationError.NullParameters"/> when
+        /// <paramref name="type"/> is <c>null</c>, or <see cref="RegistrationError.NullConverter"/>
+        /// when <paramref name="converter"/> is <c>null</c>.
+        /// </returns>
+        public RegistrationResult RegisterConverter(Type type, TypeConverterDelegate converter)
+        {
+            if (type == null)
+            {
+                return RegistrationResult.Fail(
+                    RegistrationError.NullParameters,
+                    "Type argument must not be null.");
+            }
+
+            if (converter == null)
+            {
+                return RegistrationResult.Fail(
+                    RegistrationError.NullConverter,
+                    "Converter delegate must not be null.");
+            }
+
+            if (!IsInitialized)
+            {
+                _pendingConverters[type] = converter;
+                return RegistrationResult.Ok();
+            }
+
+            _converter.AddConverter(type, AdaptConverter(converter));
+            return RegistrationResult.Ok();
+        }
+
+        /// <summary>
+        /// Adapts a public <see cref="TypeConverterDelegate"/> to the internal
+        /// <see cref="ArgumentConverter.TryConvertFunc"/> type via a thin lambda wrapper.
+        /// The wrapper is allocated once at registration time, not on the execute hot path.
+        /// </summary>
+        private static ArgumentConverter.TryConvertFunc AdaptConverter(TypeConverterDelegate d)
+        {
+            return (string input, out object result) => d(input, out result);
         }
 
         /// <summary>
