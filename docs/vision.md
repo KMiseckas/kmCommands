@@ -80,14 +80,14 @@ Register commands using C# attributes on static methods — no manual `Register(
 
 ---
 
-### 🔲 Auto-Scan at Initialize
+### ✅ Auto-Scan at Initialize
 
 Allow consumers to declare scan targets (types or assemblies) at `Initialize()` time so that attribute-based registration runs automatically during startup — removing the need for explicit follow-up `Scan()` calls in consumer bootstrap code.
 
-- [ ] `Initialize(Type[])` and `Initialize(Assembly[])` overloads (or a combined overload) that accept scan targets alongside the optional history capacity
-- [ ] Scan results from init-time scanning available for inspection after `Initialize()` returns
-- [ ] Compatible with subsequent manual `Register()` and explicit `Scan()` calls after init
-- [ ] Dev-mode opt-in via `ScanOptions` passed alongside scan targets at init time
+- [x] `Initialize(Type[])` and `Initialize(Assembly[])` overloads (or a combined overload) that accept scan targets alongside the optional history capacity
+- [x] Scan results from init-time scanning available for inspection after `Initialize()` returns
+- [x] Compatible with subsequent manual `Register()` and explicit `Scan()` calls after init
+- [x] Dev-mode opt-in via `ScanOptions` passed alongside scan targets at init time
 
 ---
 
