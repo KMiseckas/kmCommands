@@ -177,26 +177,26 @@ if (!reg.Success)
 
 Common registration errors:
 
-| Error | Cause |
-|---|---|
-| `NotInitialized` | `Initialize()` was not called yet |
-| `NullOrEmptyName` | Command name is null or empty string |
-| `NullParameters` | Parameters array is null (use `Array.Empty<CommandParameterInfo>()`) |
-| `NullCallback` | Callback delegate is null |
-| `DuplicateCommandName` | A command with this name is already registered |
+| Error                      | Cause                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `NotInitialized`           | `Initialize()` was not called yet                                              |
+| `NullOrEmptyName`          | Command name is null or empty string                                           |
+| `NullParameters`           | Parameters array is null (use `Array.Empty<CommandParameterInfo>()`)           |
+| `NullCallback`             | Callback delegate is null                                                      |
+| `DuplicateCommandName`     | A command with this name is already registered                                 |
 | `UnsupportedParameterType` | A parameter uses a type not supported by the converter (see `architecture.md`) |
 
 ## Handling Execution Errors
 
 Common execution errors:
 
-| Error | Cause |
-|---|---|
-| `NotInitialized` | `Initialize()` was not called |
-| `CommandNotFound` | No command registered with that name |
-| `ArgumentCountMismatch` | Wrong number of string tokens provided |
+| Error                      | Cause                                                         |
+| -------------------------- | ------------------------------------------------------------- |
+| `NotInitialized`           | `Initialize()` was not called                                 |
+| `CommandNotFound`          | No command registered with that name                          |
+| `ArgumentCountMismatch`    | Wrong number of string tokens provided                        |
 | `ArgumentConversionFailed` | A token could not be converted to the declared parameter type |
-| `CallbackThrewException` | The callback threw — check `result.Exception` |
+| `CallbackThrewException`   | The callback threw — check `result.Exception`                 |
 
 ## Lifecycle Notes
 

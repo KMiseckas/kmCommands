@@ -611,4 +611,3 @@ Before marking overall status `Completed`, confirm all of the following:
   - None identified. All requirements and design components are covered by exactly one or more tasks.
   - The design explicitly states `AttributeScanner` is unchanged — confirmed no task modifies it.
   - The design explicitly states `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` are unchanged — confirmed no task modifies the public `Scan` methods.
-

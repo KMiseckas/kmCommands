@@ -371,14 +371,12 @@ if (result.IsAlreadyInitialized)
 
 `IsAlreadyInitialized == true` is distinct from a zero-entry scan result (`Entries.Length == 0`, `IsAlreadyInitialized == false`), which occurs when an empty or null array is passed to a freshly initialized system.
 
-
-
 `ScanResult` holds the per-command outcomes of a scan:
 
-| Member                 | Type          | Description                                                                                                                              |
-| ---------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `Entries`              | `ScanEntry[]` | One entry per discovered command method.                                                                                                 |
-| `HasErrors`            | `bool`        | `true` if any entry has `Result.Success == false`.                                                                                       |
+| Member                 | Type          | Description                                                                                                                                                    |
+| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Entries`              | `ScanEntry[]` | One entry per discovered command method.                                                                                                                       |
+| `HasErrors`            | `bool`        | `true` if any entry has `Result.Success == false`.                                                                                                             |
 | `IsAlreadyInitialized` | `bool`        | `true` when returned by a scanning `Initialize()` overload on an already-initialized system. No scan was run. Always `false` for results returned by `Scan()`. |
 
 `ScanEntry` describes a single outcome:
