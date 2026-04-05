@@ -99,6 +99,46 @@ private void RegisterCommands()
 }
 ```
 
+### Alternative: Attribute-Based Registration at Initialize Time
+
+If you decorate your command methods with `[Command]`, you can scan at initialization and skip the separate registration step entirely:
+
+```csharp
+using kmCommands;
+using System.Reflection;
+using UnityEngine;
+
+public class CommandManager : MonoBehaviour
+{
+    private CommandSystem _commands;
+
+    private void Awake()
+    {
+        _commands = new CommandSystem();
+
+        bool isDevBuild = Debug.isDebugBuild;
+        ScanOptions options = new ScanOptions { DevMode = isDevBuild };
+
+        // Initialize and scan an assembly in one call
+        ScanResult result = _commands.Initialize(
+            new[] { Assembly.GetExecutingAssembly() },
+            options);
+
+        if (result.HasErrors)
+        {
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (!result.Entries[i].Result.Success)
+                    Debug.LogWarning(string.Format("[CommandSystem] {0}: {1}",
+                        result.Entries[i].CommandName, result.Entries[i].Result.ErrorMessage));
+            }
+        }
+    }
+}
+```
+
+Subsequent `Register()` and `Scan()` calls work normally after an init-time scan.
+
 ## Step 4 — Execute Commands
 
 Call `Execute` with the command name and an array of string tokens. The library converts the tokens to the declared types before invoking the callback.
@@ -137,26 +177,26 @@ if (!reg.Success)
 
 Common registration errors:
 
-| Error | Cause |
-|---|---|
-| `NotInitialized` | `Initialize()` was not called yet |
-| `NullOrEmptyName` | Command name is null or empty string |
-| `NullParameters` | Parameters array is null (use `Array.Empty<CommandParameterInfo>()`) |
-| `NullCallback` | Callback delegate is null |
-| `DuplicateCommandName` | A command with this name is already registered |
+| Error                      | Cause                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `NotInitialized`           | `Initialize()` was not called yet                                              |
+| `NullOrEmptyName`          | Command name is null or empty string                                           |
+| `NullParameters`           | Parameters array is null (use `Array.Empty<CommandParameterInfo>()`)           |
+| `NullCallback`             | Callback delegate is null                                                      |
+| `DuplicateCommandName`     | A command with this name is already registered                                 |
 | `UnsupportedParameterType` | A parameter uses a type not supported by the converter (see `architecture.md`) |
 
 ## Handling Execution Errors
 
 Common execution errors:
 
-| Error | Cause |
-|---|---|
-| `NotInitialized` | `Initialize()` was not called |
-| `CommandNotFound` | No command registered with that name |
-| `ArgumentCountMismatch` | Wrong number of string tokens provided |
+| Error                      | Cause                                                         |
+| -------------------------- | ------------------------------------------------------------- |
+| `NotInitialized`           | `Initialize()` was not called                                 |
+| `CommandNotFound`          | No command registered with that name                          |
+| `ArgumentCountMismatch`    | Wrong number of string tokens provided                        |
 | `ArgumentConversionFailed` | A token could not be converted to the declared parameter type |
-| `CallbackThrewException` | The callback threw — check `result.Exception` |
+| `CallbackThrewException`   | The callback threw — check `result.Exception`                 |
 
 ## Lifecycle Notes
 

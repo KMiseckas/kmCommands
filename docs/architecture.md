@@ -16,6 +16,9 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 ┌─────────────────────────────────────────────────────┐
 │                  CommandSystem                      │
 │  Initialize() / Initialize(historyCapacity)         │
+│  Initialize(types, options, capacity)               │
+│  Initialize(assemblies, options, capacity)          │
+│  Initialize(types, assemblies, options, capacity)   │
 │  Shutdown()                                         │
 │  Register(name, parameters, callback)               │
 │  Register(name, parameters, callback, description)  │
@@ -45,9 +48,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 The public entry point. The consumer creates an instance, calls `Initialize()`, then uses `Register`, `Execute`, and `RegisterConverter`. `Shutdown()` clears all state and allows re-initialization.
 
 - **Lifecycle:** Idempotent `Initialize()` / `Initialize(int historyCapacity)` and `Shutdown()`. Calling either method multiple times or out of order is safe.
+- **Scan-at-init overloads:** Three additional `Initialize` overloads accept scan targets (`Type[]`, `Assembly[]`, or both) and a `ScanOptions` value, run attribute-based scanning during initialization, and return an aggregated `ScanResult`. If already initialized, these overloads return `ScanResult.AlreadyInitialized()` immediately without re-scanning. `ScanResult.IsAlreadyInitialized` distinguishes this no-op path from a zero-entry scan result.
 - **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`. All are nulled on `Shutdown()`.
 - **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
-- **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` accepts an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
+- **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry

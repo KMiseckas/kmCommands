@@ -328,14 +328,56 @@ ScanResult result = system.Scan(System.Reflection.Assembly.GetExecutingAssembly(
 
 First-registered-wins: if two types define a command with the same name, the first encountered is registered and the second produces a `DuplicateCommandName` failure entry.
 
-### `ScanResult` and `ScanEntry`
+### Scanning at Initialize Time
+
+Instead of calling `Initialize()` then `Scan()` separately, the scanning overloads of `Initialize()` combine both steps into a single call and return the aggregated `ScanResult`:
+
+```csharp
+// Scan types at init time
+ScanResult result = system.Initialize(
+    new[] { typeof(PlayerCommands), typeof(DebugCommands) },
+    new ScanOptions { DevMode = isDevBuild });
+
+// Scan an assembly at init time
+ScanResult result = system.Initialize(
+    new[] { Assembly.GetExecutingAssembly() },
+    new ScanOptions { DevMode = isDevBuild });
+
+// Scan both types and assemblies at init time
+ScanResult result = system.Initialize(
+    new[] { typeof(PlayerCommands) },
+    new[] { Assembly.GetExecutingAssembly() },
+    new ScanOptions { DevMode = isDevBuild });
+```
+
+All three overloads also accept an optional `historyCapacity` parameter (defaults to `CommandSystem.DefaultHistoryCapacity`):
+
+```csharp
+ScanResult result = system.Initialize(
+    new[] { typeof(PlayerCommands) },
+    new ScanOptions { DevMode = isDevBuild },
+    historyCapacity: 128);
+```
+
+**Idempotency:** If the system is already initialized, the overload returns immediately. The returned `ScanResult` will have `IsAlreadyInitialized == true` and zero entries — no scan is performed:
+
+```csharp
+ScanResult result = system.Initialize(new[] { typeof(PlayerCommands) });
+if (result.IsAlreadyInitialized)
+{
+    // System was already initialized; nothing was scanned.
+}
+```
+
+`IsAlreadyInitialized == true` is distinct from a zero-entry scan result (`Entries.Length == 0`, `IsAlreadyInitialized == false`), which occurs when an empty or null array is passed to a freshly initialized system.
 
 `ScanResult` holds the per-command outcomes of a scan:
 
-| Member      | Type          | Description                                        |
-| ----------- | ------------- | -------------------------------------------------- |
-| `Entries`   | `ScanEntry[]` | One entry per discovered command method.           |
-| `HasErrors` | `bool`        | `true` if any entry has `Result.Success == false`. |
+| Member                 | Type          | Description                                                                                                                                                    |
+| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Entries`              | `ScanEntry[]` | One entry per discovered command method.                                                                                                                       |
+| `HasErrors`            | `bool`        | `true` if any entry has `Result.Success == false`.                                                                                                             |
+| `IsAlreadyInitialized` | `bool`        | `true` when returned by a scanning `Initialize()` overload on an already-initialized system. No scan was run. Always `false` for results returned by `Scan()`. |
 
 `ScanEntry` describes a single outcome:
 
