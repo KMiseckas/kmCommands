@@ -56,19 +56,7 @@ namespace kmCommands
                 return;
             }
 
-            _registry = new CommandRegistry();
-            _converter = new ArgumentConverter();
-            _executionHandler = new ExecutionHandler(_registry, _converter);
-            _attributeScanner = new AttributeScanner(_registry, _converter);
-
-            foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
-            {
-                _converter.AddConverter(entry.Key, AdaptConverter(entry.Value));
-            }
-
-            _pendingConverters.Clear();
-            _historyBuffer = new CommandHistoryBuffer(DefaultHistoryCapacity);
-            IsInitialized = true;
+            InitializeCore(DefaultHistoryCapacity);
         }
 
         /// <summary>
@@ -85,6 +73,125 @@ namespace kmCommands
                 return;
             }
 
+            InitializeCore(historyCapacity);
+        }
+
+        /// <summary>
+        /// Initializes the command system and scans the given types for
+        /// <see cref="CommandAttribute"/>-decorated methods.
+        /// Idempotent — if already initialized, returns a <see cref="ScanResult"/> with
+        /// <see cref="ScanResult.IsAlreadyInitialized"/> set to <c>true</c> and no scan is run.
+        /// </summary>
+        /// <param name="types">
+        /// Types to scan. Null array and null items are silently skipped.
+        /// </param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// commands decorated with <c>IsDevOnly = true</c> are skipped.
+        /// </param>
+        /// <param name="historyCapacity">
+        /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
+        /// Defaults to <see cref="DefaultHistoryCapacity"/>.
+        /// </param>
+        /// <returns>
+        /// An aggregated <see cref="ScanResult"/> across all provided types, or a no-op result
+        /// when the system was already initialized.
+        /// </returns>
+        public ScanResult Initialize(
+            Type[] types,
+            ScanOptions options = default,
+            int historyCapacity = DefaultHistoryCapacity)
+        {
+            if (IsInitialized)
+            {
+                return ScanResult.AlreadyInitialized();
+            }
+
+            InitializeCore(historyCapacity);
+            return RunInitTimeScans(types, null, options);
+        }
+
+        /// <summary>
+        /// Initializes the command system and scans all types in the given assemblies for
+        /// <see cref="CommandAttribute"/>-decorated methods.
+        /// Idempotent — if already initialized, returns a <see cref="ScanResult"/> with
+        /// <see cref="ScanResult.IsAlreadyInitialized"/> set to <c>true</c> and no scan is run.
+        /// </summary>
+        /// <param name="assemblies">
+        /// Assemblies to scan. Null array and null items are silently skipped.
+        /// </param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// commands decorated with <c>IsDevOnly = true</c> are skipped.
+        /// </param>
+        /// <param name="historyCapacity">
+        /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
+        /// Defaults to <see cref="DefaultHistoryCapacity"/>.
+        /// </param>
+        /// <returns>
+        /// An aggregated <see cref="ScanResult"/> across all provided assemblies, or a no-op result
+        /// when the system was already initialized.
+        /// </returns>
+        public ScanResult Initialize(
+            Assembly[] assemblies,
+            ScanOptions options = default,
+            int historyCapacity = DefaultHistoryCapacity)
+        {
+            if (IsInitialized)
+            {
+                return ScanResult.AlreadyInitialized();
+            }
+
+            InitializeCore(historyCapacity);
+            return RunInitTimeScans(null, assemblies, options);
+        }
+
+        /// <summary>
+        /// Initializes the command system and scans the given types and assemblies for
+        /// <see cref="CommandAttribute"/>-decorated methods.
+        /// Idempotent — if already initialized, returns a <see cref="ScanResult"/> with
+        /// <see cref="ScanResult.IsAlreadyInitialized"/> set to <c>true</c> and no scan is run.
+        /// </summary>
+        /// <param name="types">
+        /// Types to scan. Null array and null items are silently skipped.
+        /// </param>
+        /// <param name="assemblies">
+        /// Assemblies to scan. Null array and null items are silently skipped.
+        /// </param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// commands decorated with <c>IsDevOnly = true</c> are skipped.
+        /// </param>
+        /// <param name="historyCapacity">
+        /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
+        /// Defaults to <see cref="DefaultHistoryCapacity"/>.
+        /// </param>
+        /// <returns>
+        /// An aggregated <see cref="ScanResult"/> across all provided types and assemblies, or a
+        /// no-op result when the system was already initialized.
+        /// </returns>
+        public ScanResult Initialize(
+            Type[] types,
+            Assembly[] assemblies,
+            ScanOptions options = default,
+            int historyCapacity = DefaultHistoryCapacity)
+        {
+            if (IsInitialized)
+            {
+                return ScanResult.AlreadyInitialized();
+            }
+
+            InitializeCore(historyCapacity);
+            return RunInitTimeScans(types, assemblies, options);
+        }
+
+        /// <summary>
+        /// Constructs the full object graph (registry, converter, execution handler, attribute scanner,
+        /// history buffer) and flushes any pending converters registered before initialization.
+        /// Must only be called after the idempotency guard confirms initialization is needed.
+        /// </summary>
+        private void InitializeCore(int historyCapacity)
+        {
             int effectiveCapacity = historyCapacity < 1 ? 1 : historyCapacity;
 
             _registry = new CommandRegistry();
@@ -100,6 +207,45 @@ namespace kmCommands
             _pendingConverters.Clear();
             _historyBuffer = new CommandHistoryBuffer(effectiveCapacity);
             IsInitialized = true;
+        }
+
+        /// <summary>
+        /// Scans the given types and assemblies and merges all per-command outcomes into
+        /// a single aggregated <see cref="ScanResult"/>.
+        /// Null arrays and null items within arrays are silently skipped.
+        /// Must only be called after <see cref="InitializeCore"/> has run.
+        /// </summary>
+        private ScanResult RunInitTimeScans(Type[] types, Assembly[] assemblies, ScanOptions options)
+        {
+            List<ScanEntry> all = new List<ScanEntry>();
+
+            if (types != null)
+            {
+                for (int i = 0; i < types.Length; i++)
+                {
+                    if (types[i] == null) { continue; }
+                    ScanResult r = _attributeScanner.ScanType(types[i], options);
+                    for (int j = 0; j < r.Entries.Length; j++)
+                    {
+                        all.Add(r.Entries[j]);
+                    }
+                }
+            }
+
+            if (assemblies != null)
+            {
+                for (int i = 0; i < assemblies.Length; i++)
+                {
+                    if (assemblies[i] == null) { continue; }
+                    ScanResult r = _attributeScanner.ScanAssembly(assemblies[i], options);
+                    for (int j = 0; j < r.Entries.Length; j++)
+                    {
+                        all.Add(r.Entries[j]);
+                    }
+                }
+            }
+
+            return new ScanResult(all.ToArray());
         }
 
         /// <summary>
