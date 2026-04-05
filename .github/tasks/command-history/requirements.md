@@ -7,7 +7,7 @@ Draft
 ## Branch
 
 - Name: `plan/command-history`
-- Rationale: Planning artifact only; implementation will land on `feat_command-history`.
+- Rationale: Planning artifact only; implementation will land on `feat/command-history`.
 
 ## Summary
 
