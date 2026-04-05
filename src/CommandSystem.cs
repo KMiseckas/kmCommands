@@ -340,6 +340,46 @@ namespace kmCommands
         }
 
         /// <summary>
+        /// The current number of recorded history entries. Returns 0 when not initialized.
+        /// </summary>
+        public int HistoryCount
+        {
+            get { return _historyBuffer != null ? _historyBuffer.Count : 0; }
+        }
+
+        /// <summary>
+        /// Returns a snapshot of all currently recorded history entries, ordered oldest to newest.
+        /// The returned array is independent of the live buffer; subsequent executions do not affect it.
+        /// </summary>
+        /// <returns>
+        /// A new <see cref="CommandHistoryEntry"/> array, or <see cref="Array.Empty{T}()"/> when
+        /// the system is not initialized or the history is empty.
+        /// </returns>
+        public CommandHistoryEntry[] GetHistory()
+        {
+            if (_historyBuffer == null)
+            {
+                return Array.Empty<CommandHistoryEntry>();
+            }
+
+            return _historyBuffer.GetSnapshot();
+        }
+
+        /// <summary>
+        /// Clears all entries from the history buffer.
+        /// No-op when the system is not initialized.
+        /// </summary>
+        public void ClearHistory()
+        {
+            if (_historyBuffer == null)
+            {
+                return;
+            }
+
+            _historyBuffer.Clear();
+        }
+
+        /// <summary>
         /// Scans a single type for <see cref="CommandAttribute"/>-decorated static methods and
         /// registers each as a command.
         /// </summary>
