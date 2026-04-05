@@ -19,7 +19,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/` contains `CommandSystem`, result types, and internal runtime components.
 - Attribute-based registration (`[Command]`, `ScanOptions`, `AttributeScanner`) is fully implemented.
 - Discovery API (`GetCommandNames`, `TryGetCommandParameters`, `GetSnapshot`) is fully implemented.
-- `tests/` contains `kmCommands.Tests` (`net8.0`) with 161 passing unit tests.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 186 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -34,10 +34,11 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.
 - `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`).
-- `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`).
+- `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`); `ScanResult` exposes `IsAlreadyInitialized` (bool) and internal `AlreadyInitialized()` factory.
 - `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct — immutable record of one successful execution (name + args snapshot).
 - `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class — fixed-capacity ring buffer storing `CommandHistoryEntry` values.
-- `tests/kmCommands.Tests/`: NUnit test project.
+- `tests/kmCommands.Tests/`: NUnit test project (186 passing tests as of auto-scan-at-initialize feature).
+- `tests/kmCommands.Tests/AutoScanAtInitializeTests.cs`: 25 tests covering all scanning-at-initialize behavior.
 - `docs/`: architecture and usage documentation.
 
 ## Dependencies And Target Versions
@@ -78,6 +79,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Registration API: manual `Register(name, parameters, callback)` and `Register(name, parameters, callback, description)` — description is optional; pass `null` or use the 3-arg overload to omit.
 - Converter API: `RegisterConverter(Type, TypeConverterDelegate)` returning `RegistrationResult` — registers or overrides a converter for a given `System.Type`; safe before or after `Initialize()`; cleared by `Shutdown()`.
 - Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
+- Scan-at-Init API: `Initialize(Type[], ScanOptions, int)`, `Initialize(Assembly[], ScanOptions, int)`, `Initialize(Type[], Assembly[], ScanOptions, int)` — three overloads that initialize the system and scan targets in one call; return an aggregated `ScanResult`; idempotent (already-initialized path returns `ScanResult.IsAlreadyInitialized == true`). History capacity parameter defaults to `DefaultHistoryCapacity`.
 - Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output. Successful executions are recorded to the history buffer.
 - Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
 - History API: `DefaultHistoryCapacity` constant (64); `Initialize(int historyCapacity)` overload (capacity clamped to ≥ 1); `GetHistory()` returns `CommandHistoryEntry[]` snapshot (oldest→newest); `HistoryCount` property (non-allocating); `ClearHistory()` clears the buffer. All history members are safe before `Initialize()` and after `Shutdown()`.
@@ -131,7 +133,7 @@ The `src/` structure currently implements:
 - `src/CommandParameterInfo.cs` — public parameter descriptor
 - `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`, `NullConverter`)
 - `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum
-- `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct
+- `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct; `ScanResult` exposes `IsAlreadyInitialized` (bool) public property and `AlreadyInitialized()` internal factory; internal constructor has optional `bool isAlreadyInitialized = false` parameter.
 - `src/Core/CommandDefinition.cs` — internal command storage model
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string); extensible via `AddConverter(Type, TryConvertFunc)` internal method

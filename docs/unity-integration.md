@@ -99,6 +99,46 @@ private void RegisterCommands()
 }
 ```
 
+### Alternative: Attribute-Based Registration at Initialize Time
+
+If you decorate your command methods with `[Command]`, you can scan at initialization and skip the separate registration step entirely:
+
+```csharp
+using kmCommands;
+using System.Reflection;
+using UnityEngine;
+
+public class CommandManager : MonoBehaviour
+{
+    private CommandSystem _commands;
+
+    private void Awake()
+    {
+        _commands = new CommandSystem();
+
+        bool isDevBuild = Debug.isDebugBuild;
+        ScanOptions options = new ScanOptions { DevMode = isDevBuild };
+
+        // Initialize and scan an assembly in one call
+        ScanResult result = _commands.Initialize(
+            new[] { Assembly.GetExecutingAssembly() },
+            options);
+
+        if (result.HasErrors)
+        {
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (!result.Entries[i].Result.Success)
+                    Debug.LogWarning(string.Format("[CommandSystem] {0}: {1}",
+                        result.Entries[i].CommandName, result.Entries[i].Result.ErrorMessage));
+            }
+        }
+    }
+}
+```
+
+Subsequent `Register()` and `Scan()` calls work normally after an init-time scan.
+
 ## Step 4 — Execute Commands
 
 Call `Execute` with the command name and an array of string tokens. The library converts the tokens to the declared types before invoking the callback.
