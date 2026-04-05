@@ -541,3 +541,81 @@ The delegate must return `true` on a successful conversion and write the convert
 - Converters registered **after** `Initialize()` take effect immediately.
 - `Shutdown()` clears all custom converters. After a new `Initialize()` cycle, re-register any converters needed.
 - `RegisterConverter` itself is safe to call at any point in the lifecycle — before or after `Initialize()`.
+
+---
+
+## Command History
+
+kmCommands maintains an in-memory history of successfully executed commands. Each successful `Execute()` call appends an entry to the history buffer. Failed executions (command not found, argument conversion failure, callback exception, etc.) are **not** recorded.
+
+### History Capacity
+
+The buffer has a fixed maximum capacity. When the buffer is full and a new entry is recorded, the **oldest entry is discarded** (ring-buffer eviction).
+
+The default capacity is `CommandSystem.DefaultHistoryCapacity` (value: `64`). To configure a different capacity, use the `Initialize(int historyCapacity)` overload:
+
+```csharp
+// Default capacity (64)
+system.Initialize();
+
+// Custom capacity — stores the last 20 successful executions
+system.Initialize(20);
+```
+
+Values less than `1` are clamped to `1`. Capacity cannot be changed after initialization — call `Shutdown()` then `Initialize(newCapacity)` to resize.
+
+### `HistoryCount`
+
+Returns the current number of entries in the buffer. Does not allocate.
+
+```csharp
+int count = system.HistoryCount;
+```
+
+Returns `0` when the system is not initialized.
+
+### `GetHistory()`
+
+Returns a snapshot of all current history entries, ordered **oldest to newest**.
+
+```csharp
+CommandHistoryEntry[] history = system.GetHistory();
+for (int i = 0; i < history.Length; i++)
+{
+    string name = history[i].CommandName;
+    string[] args = history[i].Args;
+    // display or store entry...
+}
+```
+
+- The returned array is a **new snapshot** — it is independent of the live buffer. Subsequent executions do not affect a previously captured array.
+- Returns `Array.Empty<CommandHistoryEntry>()` when not initialized or when the buffer is empty.
+
+### `ClearHistory()`
+
+Clears all entries from the history buffer.
+
+```csharp
+system.ClearHistory();
+```
+
+No-op when the system is not initialized.
+
+### Lifecycle Behavior
+
+| Event                               | History state   |
+| ----------------------------------- | --------------- |
+| After `Initialize()`                | Empty           |
+| After `Execute()` (success)         | Entry appended  |
+| After `Execute()` (failure)         | Unchanged       |
+| After `ClearHistory()`              | Empty           |
+| After `Shutdown()`                  | Buffer released |
+| After `Shutdown()` + `Initialize()` | Empty           |
+
+### Before `Initialize()` / After `Shutdown()`
+
+| Member           | Pre-init / post-shutdown return value |
+| ---------------- | ------------------------------------- |
+| `HistoryCount`   | `0`                                   |
+| `GetHistory()`   | `Array.Empty<CommandHistoryEntry>()`  |
+| `ClearHistory()` | no-op (does not throw)                |

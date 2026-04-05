@@ -30,8 +30,15 @@ namespace kmCommands
         private ArgumentConverter _converter;
         private ExecutionHandler _executionHandler;
         private AttributeScanner _attributeScanner;
+        private CommandHistoryBuffer _historyBuffer;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
+
+        /// <summary>
+        /// The default maximum number of entries stored in the command history buffer.
+        /// Used when <see cref="Initialize()"/> is called without an explicit capacity argument.
+        /// </summary>
+        public const int DefaultHistoryCapacity = 64;
 
         /// <summary>
         /// Gets a value indicating whether the system has been initialized.
@@ -40,6 +47,7 @@ namespace kmCommands
 
         /// <summary>
         /// Initializes the command system. Idempotent — calling when already initialized is a no-op.
+        /// Uses <see cref="DefaultHistoryCapacity"/> as the history buffer size.
         /// </summary>
         public void Initialize()
         {
@@ -59,6 +67,38 @@ namespace kmCommands
             }
 
             _pendingConverters.Clear();
+            _historyBuffer = new CommandHistoryBuffer(DefaultHistoryCapacity);
+            IsInitialized = true;
+        }
+
+        /// <summary>
+        /// Initializes the command system with an explicit history buffer capacity.
+        /// Idempotent — calling when already initialized is a no-op.
+        /// </summary>
+        /// <param name="historyCapacity">
+        /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
+        /// </param>
+        public void Initialize(int historyCapacity)
+        {
+            if (IsInitialized)
+            {
+                return;
+            }
+
+            int effectiveCapacity = historyCapacity < 1 ? 1 : historyCapacity;
+
+            _registry = new CommandRegistry();
+            _converter = new ArgumentConverter();
+            _executionHandler = new ExecutionHandler(_registry, _converter);
+            _attributeScanner = new AttributeScanner(_registry, _converter);
+
+            foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
+            {
+                _converter.AddConverter(entry.Key, AdaptConverter(entry.Value));
+            }
+
+            _pendingConverters.Clear();
+            _historyBuffer = new CommandHistoryBuffer(effectiveCapacity);
             IsInitialized = true;
         }
 
@@ -77,6 +117,7 @@ namespace kmCommands
             _converter = null;
             _executionHandler = null;
             _attributeScanner = null;
+            _historyBuffer = null;
             _pendingConverters.Clear();
             IsInitialized = false;
         }
@@ -288,7 +329,54 @@ namespace kmCommands
                     null);
             }
 
-            return _executionHandler.Execute(commandName, args);
+            ExecutionResult result = _executionHandler.Execute(commandName, args);
+
+            if (result.Success)
+            {
+                _historyBuffer.Record(commandName, args);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// The current number of recorded history entries. Returns 0 when not initialized.
+        /// </summary>
+        public int HistoryCount
+        {
+            get { return _historyBuffer != null ? _historyBuffer.Count : 0; }
+        }
+
+        /// <summary>
+        /// Returns a snapshot of all currently recorded history entries, ordered oldest to newest.
+        /// The returned array is independent of the live buffer; subsequent executions do not affect it.
+        /// </summary>
+        /// <returns>
+        /// A new <see cref="CommandHistoryEntry"/> array, or <see cref="Array.Empty{T}()"/> when
+        /// the system is not initialized or the history is empty.
+        /// </returns>
+        public CommandHistoryEntry[] GetHistory()
+        {
+            if (_historyBuffer == null)
+            {
+                return Array.Empty<CommandHistoryEntry>();
+            }
+
+            return _historyBuffer.GetSnapshot();
+        }
+
+        /// <summary>
+        /// Clears all entries from the history buffer.
+        /// No-op when the system is not initialized.
+        /// </summary>
+        public void ClearHistory()
+        {
+            if (_historyBuffer == null)
+            {
+                return;
+            }
+
+            _historyBuffer.Clear();
         }
 
         /// <summary>

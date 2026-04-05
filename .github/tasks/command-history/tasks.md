@@ -2,9 +2,9 @@
 
 ## Status
 
-- [ ] Planned
-- [ ] In Progress
-- [ ] Completed
+- [x] Planned
+- [x] In Progress
+- [x] Completed
 
 ## Inputs
 

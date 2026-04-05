@@ -81,17 +81,17 @@ Register commands using C# attributes on static methods — no manual `Register(
 
 ---
 
-### 🔲 Command History
+### ✅ Command History
 
 Maintain an in-memory ring buffer of executed commands, results, and system events. An injectable adapter interface lets consumers optionally persist history to any sink (file, network, etc.) without coupling the core to `System.IO`.
 
-- [ ] In-memory ring buffer with configurable max entry count
-- [ ] Entries record: timestamp, raw input string, resolved command name, result status, error detail
-- [ ] Consumer reads buffer via a history API (e.g. `GetHistory()`, paged or full)
-- [ ] Injectable `IHistoryWriter` adapter — library calls it on each entry append; no I/O without an injected implementation
-- [ ] Adapter is optional — library works fully without one; missing adapter is never an error
-- [ ] Buffer capacity and adapter are configurable at `Initialize()`
-- [ ] Unity layer implements `IHistoryWriter` for file logging, Editor console forwarding, network sinks, etc.
+- [x] In-memory ring buffer with configurable max entry count
+- [x] Entries record: timestamp, raw input string, resolved command name, result status, error detail
+- [x] Consumer reads buffer via a history API (e.g. `GetHistory()`, paged or full)
+- [x] Injectable `IHistoryWriter` adapter — library calls it on each entry append; no I/O without an injected implementation
+- [x] Adapter is optional — library works fully without one; missing adapter is never an error
+- [x] Buffer capacity and adapter are configurable at `Initialize()`
+- [x] Unity layer implements `IHistoryWriter` for file logging, Editor console forwarding, network sinks, etc.
 
 ---
 
