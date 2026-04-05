@@ -128,5 +128,15 @@ namespace kmCommands.Core
         {
             _commands.Clear();
         }
+
+        /// <summary>
+        /// Removes the command with the given name (case-insensitive).
+        /// </summary>
+        /// <param name="name">The command name to remove.</param>
+        /// <returns><c>true</c> if the command was found and removed; <c>false</c> if not found.</returns>
+        internal bool TryRemove(string name)
+        {
+            return _commands.Remove(name);
+        }
     }
 }

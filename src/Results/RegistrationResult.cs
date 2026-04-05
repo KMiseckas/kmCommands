@@ -41,7 +41,19 @@ namespace kmCommands
         OptionalParameterBeforeRequired,
 
         /// <summary>The provided converter delegate was null.</summary>
-        NullConverter
+        NullConverter,
+
+        /// <summary>The target object passed to <c>RegisterInstance</c> was null.</summary>
+        NullTarget,
+
+        /// <summary>An instance with the same key is already registered.</summary>
+        DuplicateInstanceKey,
+
+        /// <summary>
+        /// The instance key is null or empty, or contains a dot character which is reserved
+        /// as the separator in instance command names.
+        /// </summary>
+        InvalidInstanceKey
     }
 
     /// <summary>
