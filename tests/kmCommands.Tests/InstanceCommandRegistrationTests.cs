@@ -72,6 +72,31 @@ namespace kmCommands.Tests
             }
         }
 
+        private class WriteOnlyPropTarget
+        {
+            private int _value;
+            public int WriteOnly { set { _value = value; } }
+            public int GetValue() { return _value; }
+        }
+
+        private class RefParamClassTarget
+        {
+            public void RefMethod(ref int x) { x = 0; }
+            public void Normal() { }
+        }
+
+        private class DevOnlyTarget
+        {
+            [Command("dev_cmd", IsDevOnly = true)]
+            public void DevCmd() { }
+            public void RegularMethod() { }
+        }
+
+        private class NonVoidMethodTarget
+        {
+            public int Double(int x) { return x * 2; }
+        }
+
         // ── Guard: not initialized ────────────────────────────────────────────────
 
         [Test]
@@ -389,6 +414,148 @@ namespace kmCommands.Tests
             string[] names = _system.GetCommandNames();
             Assert.That(names, Does.Contain("player.special")); // [Command]-decorated private method
             Assert.That(names, Does.Not.Contain("player.Ping")); // public auto-scan method
+        }
+
+        // ── R10: IsDevOnly filtering at integration level ─────────────────────────
+
+        [Test]
+        public void RegisterInstance_DevOnlyCmd_SkippedWhenDevModeOff()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "obj", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_system.GetCommandNames(), Does.Not.Contain("obj.dev_cmd"));
+            Assert.That(_system.GetCommandNames(), Does.Contain("obj.RegularMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_DevOnlyCmd_RegisteredWhenDevModeOn()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "obj", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_system.GetCommandNames(), Does.Contain("obj.dev_cmd"));
+        }
+
+        // ── R7: Object-inherited methods not registered ───────────────────────────
+
+        [Test]
+        public void RegisterInstance_ObjectInheritedMethods_NotInCommandNames()
+        {
+            var target = new EnemyTarget();
+            _system.RegisterInstance(target, "enemy");
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Does.Not.Contain("enemy.GetHashCode"));
+            Assert.That(names, Does.Not.Contain("enemy.Equals"));
+            Assert.That(names, Does.Not.Contain("enemy.ToString"));
+            Assert.That(names, Does.Not.Contain("enemy.GetType"));
+        }
+
+        // ── R8: Write-only property produces only set_ command ────────────────────
+
+        [Test]
+        public void RegisterInstance_WriteOnlyProperty_ProducesOnlySetCommand()
+        {
+            var target = new WriteOnlyPropTarget();
+            _system.RegisterInstance(target, "wo");
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Does.Contain("wo.set_WriteOnly"));
+            Assert.That(names, Does.Not.Contain("wo.get_WriteOnly"));
+        }
+
+        // ── R18: Ref param skipped with descriptive ScanEntry ────────────────────
+
+        [Test]
+        public void RegisterInstance_RefParamMethod_ProducesFailedScanEntry()
+        {
+            var target = new RefParamClassTarget();
+            ScanResult result = _system.RegisterInstance(target, "obj");
+
+            bool hasFailure = false;
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (result.Entries[i].CommandName.Contains("RefMethod") && !result.Entries[i].Result.Success)
+                {
+                    hasFailure = true;
+                    break;
+                }
+            }
+            Assert.That(hasFailure, Is.True);
+            // Normal method still registered
+            Assert.That(_system.GetCommandNames(), Does.Contain("obj.Normal"));
+        }
+
+        // ── R14: History ReturnValue for instance commands ────────────────────────
+
+        [Test]
+        public void Execute_NonVoidInstanceMethod_HistoryEntryHasReturnValue()
+        {
+            var target = new NonVoidMethodTarget();
+            _system.RegisterInstance(target, "calc");
+
+            _system.Execute("calc.Double", new[] { "5" });
+
+            CommandHistoryEntry[] history = _system.GetHistory();
+            Assert.That(history, Has.Length.GreaterThan(0));
+            Assert.That(history[history.Length - 1].ReturnValue, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void Execute_VoidInstanceMethod_HistoryEntryHasNullReturnValue()
+        {
+            var target = new PlayerTarget();
+            _system.RegisterInstance(target, "player");
+
+            _system.Execute("player.Ping", Array.Empty<string>());
+
+            CommandHistoryEntry[] history = _system.GetHistory();
+            Assert.That(history, Has.Length.GreaterThan(0));
+            Assert.That(history[history.Length - 1].ReturnValue, Is.Null);
+        }
+
+        // ── R16: TryGetCommandParameters absent after UnregisterInstance ──────────
+
+        [Test]
+        public void UnregisterInstance_TryGetCommandParameters_ReturnsFalse()
+        {
+            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.UnregisterInstance("player");
+
+            bool found = _system.TryGetCommandParameters("player.Heal", out _);
+            Assert.That(found, Is.False);
+        }
+
+        // ── R5: ScanResult clean on success ───────────────────────────────────────
+
+        [Test]
+        public void RegisterInstance_CleanScan_ScanResultHasNoErrors()
+        {
+            var target = new EnemyTarget();
+            ScanResult result = _system.RegisterInstance(target, "enemy");
+
+            Assert.That(result.HasErrors, Is.False);
+        }
+
+        [Test]
+        public void RegisterInstance_CleanScan_EntriesContainRegisteredCommands()
+        {
+            var target = new EnemyTarget();
+            ScanResult result = _system.RegisterInstance(target, "enemy");
+
+            // EnemyTarget: Name (get+set), Damage (get+set) = 4 property commands + 0 public methods
+            Assert.That(result.Entries.Length, Is.GreaterThan(0));
+            bool hasEntry = false;
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (result.Entries[i].CommandName.StartsWith("enemy."))
+                {
+                    hasEntry = true;
+                    break;
+                }
+            }
+            Assert.That(hasEntry, Is.True);
         }
     }
 }

@@ -20,7 +20,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Attribute-based registration (`[Command]`, `ScanOptions`, `AttributeScanner`) is fully implemented.
 - Instance command registration (`RegisterInstance`, `UnregisterInstance`, `InstanceScanner`, `InstanceCallbackBuilder`) is fully implemented.
 - Discovery API (`GetCommandNames`, `TryGetCommandParameters`, `GetSnapshot`) is fully implemented.
-- `tests/` contains `kmCommands.Tests` (`net8.0`) with 262 passing unit tests.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 272 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -43,7 +43,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/Core/InstanceRegistry.cs`: internal `InstanceRegistry` sealed class — maps instanceKey → command names + target object.
 - `src/Core/InstanceScanner.cs`: internal `InstanceScanner` sealed class — discovers and registers instance members.
 - `src/Core/InstanceCallbackBuilder.cs`: internal static class — builds AOT-safe instance-bound delegates.
-- `tests/kmCommands.Tests/`: NUnit test project (262 passing tests).
+- `tests/kmCommands.Tests/`: NUnit test project (272 passing tests).
 - `tests/kmCommands.Tests/AutoScanAtInitializeTests.cs`: 25 tests covering all scanning-at-initialize behavior.
 - `tests/kmCommands.Tests/InstanceScannerTests.cs`: 27 tests covering InstanceScanner/InstanceCallbackBuilder internal behavior.
 - `tests/kmCommands.Tests/InstanceCommandRegistrationTests.cs`: integration tests for RegisterInstance/UnregisterInstance public API.
