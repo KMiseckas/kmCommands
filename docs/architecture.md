@@ -38,8 +38,8 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 | Namespace         | Contents                                                                                                                                                                                                                                                                                          | Visibility |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`                                                                                                     | Internal   |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `CommandHostAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`                                                                              | Internal   |
 
 ## Components
 
@@ -49,10 +49,11 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 
 - **Lifecycle:** Idempotent `Initialize()` / `Initialize(int historyCapacity)` and `Shutdown()`. Calling either method multiple times or out of order is safe.
 - **Scan-at-init overloads:** Three additional `Initialize` overloads accept scan targets (`Type[]`, `Assembly[]`, or both) and a `ScanOptions` value, run attribute-based scanning during initialization, and return an aggregated `ScanResult`. If already initialized, these overloads return `ScanResult.AlreadyInitialized()` immediately without re-scanning. `ScanResult.IsAlreadyInitialized` distinguishes this no-op path from a zero-entry scan result.
-- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`, `InstanceRegistry`, `InstanceScanner`. All are nulled on `Shutdown()`; `InstanceRegistry.Clear()` is called before nulling.
+- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`, `InstanceRegistry`, `InstanceScanner`, `TypeCommandProfileCache`. All are nulled on `Shutdown()`; `InstanceRegistry.Clear()` and `TypeCommandProfileCache.Clear()` are called before nulling.
 - **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
 - **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
-- **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
+- **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then checks `TypeCommandProfileCache`. On cache hit, delegates to `InstanceScanner.ScanFromProfile()`; on cache miss, delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
+- **Pre-scan cache:** `ScanCommandHosts(Type[])` and `ScanCommandHosts(Assembly[])` pre-scan types decorated with `[CommandHost]` and store their `TypeCommandProfile` in the cache. Only `[CommandHost]`-decorated types are processed; others are silently skipped.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry
@@ -151,12 +152,32 @@ An `internal sealed class` that maps instance keys to their command names and ta
 
 An `internal sealed class` that discovers and registers instance commands on a target's type. Constructed in `CommandSystem.Initialize()` alongside `AttributeScanner`.
 
-- `Scan(target, instanceKey, options, mode)` — Entry point. Returns a `ScanResult` with per-command outcomes.
+- `Scan(target, instanceKey, options, mode)` — Cold-scan entry point. Returns a `ScanResult` with per-command outcomes.
+- `BuildProfile(type, options)` — Reflects on a type's members and produces a `TypeCommandProfile` with pre-validated metadata. Called by `ScanCommandHosts` at startup; **does not** apply DevMode filtering — that is deferred to `ScanFromProfile`.
+- `ScanFromProfile(target, instanceKey, options, mode, profile)` — Fast-path registration using a pre-built profile. Only delegate creation occurs per instance; all reflection and parameter validation were done at profile-build time.
 - In `Auto` mode, runs two sub-passes: attribute-decorated methods (all access levels, `DeclaredOnly`) and then public declared methods + properties.
 - In `AttributeOnly` mode, only the attribute-decorated pass runs.
 - All registered commands have `IsInstanceCommand = true` on their `CommandDefinition`.
 - Failed commands (generic methods, ref params, unsupported types) are added to the `ScanResult` entries rather than silently skipped.
 - Tracks each successfully registered command name in `InstanceRegistry` via `TrackCommand`.
+
+### TypeCommandProfile
+
+An `internal sealed class` that carries pre-validated, immutable member metadata for a single type. Built once by `InstanceScanner.BuildProfile()` and stored in `TypeCommandProfileCache`.
+
+- `AttributeMethods[]` — `[Command]`-decorated instance methods with pre-built `CommandParameterInfo[]` and `IsDevOnly` flag.
+- `AutoScanMethods[]` — Public instance methods eligible for auto-scan (no `[Command]`, no `[CommandIgnore]`), with pre-validated parameters.
+- `AutoScanProperties[]` — Public rw/ro/wo instance properties with pre-computed `CanRead`, `CanWrite`, and `SetterTypeSupported` flags.
+- DevMode filtering is **not** applied at build time — it is applied during `ScanFromProfile`.
+- `ScanUpTo` boundary **is** applied at build time via `GetScanTypes`.
+
+### TypeCommandProfileCache
+
+An `internal sealed class` backed by a `Dictionary<Type, TypeCommandProfile>`. Maps concrete `Type` → `TypeCommandProfile` for types pre-scanned via `ScanCommandHosts`.
+
+- `TryGet(Type, out TypeCommandProfile)` — O(1) lookup by concrete type.
+- `Add(Type, TypeCommandProfile)` — Inserts or replaces a cached profile.
+- `Clear()` — Removes all entries; called by `CommandSystem.Shutdown()`.
 
 ### InstanceCallbackBuilder
 

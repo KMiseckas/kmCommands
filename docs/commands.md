@@ -970,3 +970,75 @@ void OnDestroy()
 Failing to unregister leads to:
 - Memory leaks — the target object's entire object graph is kept alive.
 - Continued `InstanceNull` errors on any further execution attempts for that key.
+
+---
+
+## Pre-Scan Caching with `[CommandHost]` and `ScanCommandHosts`
+
+### The Problem
+
+Every call to `RegisterInstance` walks the target type's members via reflection and validates their parameter signatures. For classes that are registered and unregistered frequently (e.g., a `PlayerController` that is instantiated once per scene), this reflection cost is repeated unnecessarily.
+
+### The Solution
+
+Decorate types with `[CommandHost]` and call `ScanCommandHosts` once at startup. kmCommands caches each type's member metadata into a `TypeCommandProfile`. Subsequent `RegisterInstance` calls for matching types skip all reflection and go directly to delegate creation.
+
+### Usage
+
+```csharp
+// Mark the class as a command host
+[CommandHost]
+public class PlayerController
+{
+    [Command("heal")]
+    public void Heal(int amount) { Health += amount; }
+
+    public int Health { get; set; } = 100;
+}
+
+// At startup — pre-scan known command-host types
+system.Initialize();
+system.ScanCommandHosts(new[] { typeof(PlayerController) });
+
+// Later — RegisterInstance is reflection-free for PlayerController
+ScanResult result = system.RegisterInstance(
+    player, "player", new ScanOptions { DevMode = isDevBuild });
+```
+
+### Assembly-Level Pre-Scan
+
+If you want all `[CommandHost]` types in an assembly pre-scanned without listing them explicitly:
+
+```csharp
+system.ScanCommandHosts(new[] { typeof(PlayerController).Assembly });
+```
+
+Only types decorated with `[CommandHost]` are processed. Types without the attribute are silently skipped.
+
+### Behavior Rules
+
+- `ScanCommandHosts` caches **all** members (attribute-decorated and auto-scan eligible) **without** applying DevMode filtering. DevMode is resolved at `RegisterInstance` time, not at pre-scan time.
+- `ScanOptions.ScanUpTo` **is** applied at `ScanCommandHosts` time. Pass matching options to both `ScanCommandHosts` and `RegisterInstance`.
+- Passing a type **without** `[CommandHost]` to the `Type[]` overload produces no cache entry and no error (silent skip).
+- `Shutdown()` clears the profile cache.
+- If `RegisterInstance` is called for a type that has not been pre-scanned, it falls back to the standard reflection path automatically.
+
+### `ScanCommandHosts` Overloads
+
+```csharp
+// Pre-scan explicit types (only [CommandHost]-decorated types are cached)
+ScanResult result = system.ScanCommandHosts(new[] { typeof(PlayerController) });
+
+// Pre-scan with ScanOptions (for ScanUpTo boundary)
+ScanResult result = system.ScanCommandHosts(
+    new[] { typeof(PlayerController) },
+    new ScanOptions { ScanUpTo = typeof(MonoBehaviour) });
+
+// Pre-scan all [CommandHost] types in assemblies
+ScanResult result = system.ScanCommandHosts(new[] { Assembly.GetExecutingAssembly() });
+
+// Assembly overload with options
+ScanResult result = system.ScanCommandHosts(
+    new[] { Assembly.GetExecutingAssembly() },
+    new ScanOptions { ScanUpTo = typeof(MonoBehaviour) });
+```

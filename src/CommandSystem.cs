@@ -33,6 +33,7 @@ namespace kmCommands
         private CommandHistoryBuffer _historyBuffer;
         private InstanceRegistry _instanceRegistry;
         private InstanceScanner _instanceScanner;
+        private TypeCommandProfileCache _profileCache;
         private bool _devMode;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
@@ -234,6 +235,7 @@ namespace kmCommands
             _attributeScanner = new AttributeScanner(_registry, _converter);
             _instanceRegistry = new InstanceRegistry();
             _instanceScanner = new InstanceScanner(_registry, _converter, _instanceRegistry);
+            _profileCache = new TypeCommandProfileCache();
 
             foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
             {
@@ -302,6 +304,8 @@ namespace kmCommands
             _instanceRegistry?.Clear();
             _instanceRegistry = null;
             _instanceScanner = null;
+            _profileCache?.Clear();
+            _profileCache = null;
             _historyBuffer = null;
             _devMode = false;
             _pendingConverters.Clear();
@@ -706,7 +710,126 @@ namespace kmCommands
                     string.Format("An instance with key '{0}' is already registered.", instanceKey));
             }
 
-            return _instanceScanner.Scan(target, instanceKey, ResolveEffectiveOptions(options), mode);
+            ScanOptions effective = ResolveEffectiveOptions(options);
+
+            if (_profileCache.TryGet(target.GetType(), out TypeCommandProfile profile))
+            {
+                return _instanceScanner.ScanFromProfile(
+                    target, instanceKey, effective, mode, profile);
+            }
+
+            return _instanceScanner.Scan(target, instanceKey, effective, mode);
+        }
+
+        /// <summary>
+        /// Pre-scans the given types and caches their member metadata so that subsequent
+        /// <see cref="RegisterInstance"/> calls for instances of those types skip reflection
+        /// and parameter-validation work.
+        /// </summary>
+        /// <param name="types">Types to pre-scan. Null array and null items are silently skipped.</param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were processed.
+        /// An empty <see cref="ScanResult"/> is returned if <paramref name="types"/> is null.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Type[] types)
+        {
+            return ScanCommandHosts(types, default);
+        }
+
+        /// <summary>
+        /// Pre-scans the given types and caches their member metadata so that subsequent
+        /// <see cref="RegisterInstance"/> calls for instances of those types skip reflection
+        /// and parameter-validation work.
+        /// </summary>
+        /// <param name="types">Types to pre-scan. Null array and null items are silently skipped.</param>
+        /// <param name="options">
+        /// Scan options used to determine the hierarchy depth (<see cref="ScanOptions.ScanUpTo"/>).
+        /// DevMode is resolved at <see cref="RegisterInstance"/> time, not at pre-scan time.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were processed.
+        /// An empty <see cref="ScanResult"/> is returned if <paramref name="types"/> is null.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Type[] types, ScanOptions options)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (types == null)
+            {
+                return new ScanResult(Array.Empty<ScanEntry>());
+            }
+
+            List<ScanEntry> entries = new List<ScanEntry>();
+            for (int i = 0; i < types.Length; i++)
+            {
+                if (types[i] == null) continue;
+                if (types[i].GetCustomAttribute<CommandHostAttribute>() == null) continue;
+                TypeCommandProfile profile = _instanceScanner.BuildProfile(types[i], options);
+                _profileCache.Add(types[i], profile);
+                entries.Add(new ScanEntry(types[i].FullName, RegistrationResult.Ok()));
+            }
+            return new ScanResult(entries.ToArray());
+        }
+
+        /// <summary>
+        /// Pre-scans all types in the given assemblies that are decorated with
+        /// <see cref="CommandHostAttribute"/> and caches their member metadata.
+        /// </summary>
+        /// <param name="assemblies">Assemblies to scan. Null array and null items are silently skipped.</param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were pre-scanned.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Assembly[] assemblies)
+        {
+            return ScanCommandHosts(assemblies, default);
+        }
+
+        /// <summary>
+        /// Pre-scans all types in the given assemblies that are decorated with
+        /// <see cref="CommandHostAttribute"/> and caches their member metadata.
+        /// </summary>
+        /// <param name="assemblies">Assemblies to scan. Null array and null items are silently skipped.</param>
+        /// <param name="options">
+        /// Scan options used to determine the hierarchy depth (<see cref="ScanOptions.ScanUpTo"/>).
+        /// DevMode is resolved at <see cref="RegisterInstance"/> time, not at pre-scan time.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were pre-scanned.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Assembly[] assemblies, ScanOptions options)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (assemblies == null)
+            {
+                return new ScanResult(Array.Empty<ScanEntry>());
+            }
+
+            List<ScanEntry> entries = new List<ScanEntry>();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                if (assemblies[i] == null) continue;
+                Type[] allTypes = assemblies[i].GetTypes();
+                for (int t = 0; t < allTypes.Length; t++)
+                {
+                    Type type = allTypes[t];
+                    if (type.GetCustomAttribute<CommandHostAttribute>() == null) continue;
+                    TypeCommandProfile profile = _instanceScanner.BuildProfile(type, options);
+                    _profileCache.Add(type, profile);
+                    entries.Add(new ScanEntry(type.FullName, RegistrationResult.Ok()));
+                }
+            }
+            return new ScanResult(entries.ToArray());
         }
 
         /// <summary>

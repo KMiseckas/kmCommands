@@ -561,5 +561,137 @@ namespace kmCommands.Tests
             }
             Assert.That(hasEntry, Is.True);
         }
+
+        // ── ScanCommandHosts ──────────────────────────────────────────────────────
+
+        [CommandHost]
+        private class HostTarget
+        {
+            [Command("host_cmd")]
+            public void HostMethod() { }
+            public void AutoHostMethod() { }
+        }
+
+        private class NonHostTarget
+        {
+            [Command("nonhost_cmd")]
+            public void NonHostMethod() { }
+        }
+
+        [Test]
+        public void ScanCommandHosts_NonCommandHostType_SilentlySkipped()
+        {
+            ScanResult result = _system.ScanCommandHosts(new[] { typeof(NonHostTarget) });
+            Assert.That(result.HasErrors, Is.False);
+            Assert.That(result.Entries.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ScanCommandHosts_CommandHostType_CachesProfile()
+        {
+            _system.ScanCommandHosts(new[] { typeof(HostTarget) });
+            var target = new HostTarget();
+            ScanResult result = _system.RegisterInstance(
+                target, "host", new ScanOptions { DevMode = true });
+
+            Assert.That(result.HasErrors, Is.False);
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("host.host_cmd"));
+            Assert.That(names, Has.Member("host.AutoHostMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_ForPreScannedType_ProducesSameCommandsAsColdScan()
+        {
+            // Cold-scan first instance
+            var cold = new HostTarget();
+            ScanResult coldResult = _system.RegisterInstance(
+                cold, "cold", new ScanOptions { DevMode = true });
+
+            // Pre-scan then register second instance
+            _system.ScanCommandHosts(new[] { typeof(HostTarget) });
+            var hot = new HostTarget();
+            ScanResult hotResult = _system.RegisterInstance(
+                hot, "hot", new ScanOptions { DevMode = true });
+
+            // Both should produce same number of successful entries
+            int coldSuccess = 0;
+            int hotSuccess = 0;
+            for (int i = 0; i < coldResult.Entries.Length; i++)
+            {
+                if (coldResult.Entries[i].Result.Success) coldSuccess++;
+            }
+            for (int i = 0; i < hotResult.Entries.Length; i++)
+            {
+                if (hotResult.Entries[i].Result.Success) hotSuccess++;
+            }
+            Assert.That(hotSuccess, Is.EqualTo(coldSuccess));
+        }
+
+        // ── Task 5: 4-arg RegisterInstance with ScanOptions ──────────────────────
+
+        private class ExplicitCommandTarget
+        {
+            [Command("explicit_cmd")]
+            public void ExplicitMethod() { }
+            public void PublicAutoMethod() { }
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOff_SkipsAutoScannedMembers()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t1",
+                new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.No.Member("t1.RegularMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOn_IncludesAutoScannedMembers()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t2",
+                new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t2.RegularMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOff_RegistersExplicitCommandAttribute()
+        {
+            var target = new ExplicitCommandTarget();
+            _system.RegisterInstance(target, "t3",
+                new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t3.explicit_cmd"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_AttributeOnlyMode_DevModeOff()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t4",
+                new ScanOptions { DevMode = false }, InstanceScanMode.AttributeOnly);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.No.Member("t4.dev_cmd"),  "IsDevOnly skipped when DevMode off");
+            Assert.That(names, Has.No.Member("t4.RegularMethod"), "Auto-scan suppressed in AttributeOnly");
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_AttributeOnlyMode_DevModeOn()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t5",
+                new ScanOptions { DevMode = true }, InstanceScanMode.AttributeOnly);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t5.dev_cmd"), "IsDevOnly registered when DevMode on");
+            Assert.That(names, Has.No.Member("t5.RegularMethod"), "Auto-scan suppressed in AttributeOnly");
+        }
     }
 }

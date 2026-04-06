@@ -32,19 +32,22 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/`: core library source.
 - `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
 - `src/CommandIgnoreAttribute.cs`: public `[CommandIgnore]` attribute — prevents a method or property from being registered in any scan mode; overrides `[Command]` when both are present.
+- `src/CommandHostAttribute.cs`: public `[CommandHost]` attribute — marks a class for pre-scanning via `ScanCommandHosts`; applied to types whose instances are registered frequently.
 - `src/ScanOptions.cs`: public `ScanOptions` struct — `DevMode` bool; `ScanUpTo` Type (null = DeclaredOnly, non-null = walk hierarchy up to but not including the boundary type).
 - `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
 - `src/InstanceScanMode.cs`: public `InstanceScanMode` enum — `Auto` (default) / `AttributeOnly`.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.
 - `src/Results/UnregisterResult.cs`: public `UnregisterResult` readonly struct — result of `UnregisterInstance` with `Success`, `RemovedCount`, `ErrorMessage`.
-- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`).
+- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `TypeCommandProfile`, `TypeCommandProfileCache`).
+- `src/Core/TypeCommandProfile.cs`: internal `TypeCommandProfile` sealed class — immutable per-type cache of validated member metadata (`AttributeMethods[]`, `AutoScanMethods[]`, `AutoScanProperties[]`).
+- `src/Core/TypeCommandProfileCache.cs`: internal `TypeCommandProfileCache` sealed class — `Dictionary<Type, TypeCommandProfile>` backing store with `TryGet`, `Add`, `Clear`.
 - `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`); `ScanResult` exposes `IsAlreadyInitialized` (bool) and internal `AlreadyInitialized()` factory.
 - `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct — immutable record of one successful execution (name + args + returnValue snapshot).
 - `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class — fixed-capacity ring buffer storing `CommandHistoryEntry` values.
 - `src/Core/InstanceRegistry.cs`: internal `InstanceRegistry` sealed class — maps instanceKey → command names + target object.
-- `src/Core/InstanceScanner.cs`: internal `InstanceScanner` sealed class — discovers and registers instance members.
+- `src/Core/InstanceScanner.cs`: internal `InstanceScanner` sealed class — discovers and registers instance members; `Scan()` for cold path; `BuildProfile()` for pre-scan; `ScanFromProfile()` for cache-hit fast path.
 - `src/Core/InstanceCallbackBuilder.cs`: internal static class — builds AOT-safe instance-bound delegates.
-- `tests/kmCommands.Tests/`: NUnit test project (272 passing tests).
+- `tests/kmCommands.Tests/`: NUnit test project (306 passing tests).
 - `tests/kmCommands.Tests/AutoScanAtInitializeTests.cs`: 25 tests covering all scanning-at-initialize behavior.
 - `tests/kmCommands.Tests/InstanceScannerTests.cs`: 27 tests covering InstanceScanner/InstanceCallbackBuilder internal behavior.
 - `tests/kmCommands.Tests/InstanceCommandRegistrationTests.cs`: integration tests for RegisterInstance/UnregisterInstance public API.
@@ -89,7 +92,8 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Converter API: `RegisterConverter(Type, TypeConverterDelegate)` returning `RegistrationResult` — registers or overrides a converter for a given `System.Type`; safe before or after `Initialize()`; cleared by `Shutdown()`.
 - Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
 - Scan-at-Init API: `Initialize(Type[], ScanOptions, int, bool)`, `Initialize(Assembly[], ScanOptions, int, bool)`, `Initialize(Type[], Assembly[], ScanOptions, int, bool)` — three overloads that initialize the system and scan targets in one call; return an aggregated `ScanResult`; idempotent (already-initialized path returns `ScanResult.IsAlreadyInitialized == true`). History capacity parameter defaults to `DefaultHistoryCapacity`. `devMode` parameter (default `false`) sets the system-wide DevMode flag.
-- Instance Registration API: `RegisterInstance(target, key)` and `RegisterInstance(target, key, ScanOptions, InstanceScanMode)` — discovers and registers instance-bound commands under `key.commandName`; returns `ScanResult`; guards: `NotInitialized`, `NullTarget`, `InvalidInstanceKey`, `DuplicateInstanceKey`. `UnregisterInstance(key)` removes all commands for that key; returns `UnregisterResult` with `Success`, `RemovedCount`, `ErrorMessage`.
+- Instance Registration API: `RegisterInstance(target, key)` and `RegisterInstance(target, key, ScanOptions, InstanceScanMode)` — discovers and registers instance-bound commands under `key.commandName`; returns `ScanResult`; guards: `NotInitialized`, `NullTarget`, `InvalidInstanceKey`, `DuplicateInstanceKey`. On cache hit in `TypeCommandProfileCache`, uses `ScanFromProfile` path (skips reflection). `UnregisterInstance(key)` removes all commands for that key; returns `UnregisterResult` with `Success`, `RemovedCount`, `ErrorMessage`.
+- Pre-Scan API: `ScanCommandHosts(Type[])`, `ScanCommandHosts(Type[], ScanOptions)`, `ScanCommandHosts(Assembly[])`, `ScanCommandHosts(Assembly[], ScanOptions)` — pre-scans `[CommandHost]`-decorated types and caches `TypeCommandProfile`; non-decorated types are silently skipped; DevMode deferred to `RegisterInstance` time; `ScanUpTo` applied at build time.
 - Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output. Successful executions are recorded to the history buffer. `ExecutionError.InstanceNull` is returned when an instance command's bound target is null/destroyed.
 - Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
 - History API: `DefaultHistoryCapacity` constant (64); `Initialize(int historyCapacity)` overload (capacity clamped to ≥ 1); `GetHistory()` returns `CommandHistoryEntry[]` snapshot (oldest→newest); `HistoryCount` property (non-allocating); `ClearHistory()` clears the buffer. All history members are safe before `Initialize()` and after `Shutdown()`.
@@ -135,7 +139,7 @@ Add this header at the top of new source files in `src/`:
 
 The `src/` structure currently implements:
 
-- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, `RegisterConverter`, `RegisterInstance`, `UnregisterInstance` with `_pendingConverters`, `_instanceRegistry`, `_instanceScanner`; `_devMode` field; `ResolveEffectiveOptions` helper; all `Initialize()` overloads accept optional `bool devMode = false`; `Scan()` and `RegisterInstance()` pass resolved options to internals
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, `RegisterConverter`, `RegisterInstance`, `UnregisterInstance` with `_pendingConverters`, `_instanceRegistry`, `_instanceScanner`, `_profileCache`; `_devMode` field; `ResolveEffectiveOptions` helper; all `Initialize()` overloads accept optional `bool devMode = false`; `Scan()` and `RegisterInstance()` pass resolved options to internals; `ScanCommandHosts()` overloads kick off `BuildProfile` and store in cache
 - `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
 - `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
 - `src/InstanceScanMode.cs` — public `InstanceScanMode` enum; `Auto=0`, `AttributeOnly=1`

@@ -659,5 +659,150 @@ namespace kmCommands.Tests
             Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.False);
             Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
         }
+
+        // ── BuildProfile ─────────────────────────────────────────────────────────
+
+        private class ProfileTarget
+        {
+            [Command("attr_method")]
+            public void AttributeMethod() { }
+
+            [Command("attr_devonly", IsDevOnly = true)]
+            public void AttributeDevOnlyMethod() { }
+
+            public void AutoMethod() { }
+            public int AutoProp { get; set; }
+
+            [CommandIgnore]
+            public void IgnoredInProfile() { }
+
+            [CommandIgnore]
+            [Command("also_ignored")]
+            public void AttributeIgnored() { }
+        }
+
+        [Test]
+        public void BuildProfile_ProducesCorrectAttributeMethodEntries()
+        {
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ProfileTarget), default);
+
+            bool foundAttr = false;
+            bool foundDevOnly = false;
+            for (int i = 0; i < profile.AttributeMethods.Length; i++)
+            {
+                if (profile.AttributeMethods[i].CommandName == "attr_method") foundAttr = true;
+                if (profile.AttributeMethods[i].CommandName == "attr_devonly") foundDevOnly = true;
+            }
+            Assert.That(foundAttr, Is.True, "attr_method should be in AttributeMethods");
+            Assert.That(foundDevOnly, Is.True, "attr_devonly should be in AttributeMethods regardless of DevMode");
+        }
+
+        [Test]
+        public void BuildProfile_ProducesCorrectAutoScanMethodEntries()
+        {
+            // DevMode NOT applied at build time — AutoScanMethods contains entries regardless
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ProfileTarget), default);
+
+            bool foundAuto = false;
+            for (int i = 0; i < profile.AutoScanMethods.Length; i++)
+            {
+                if (profile.AutoScanMethods[i].CommandName == "AutoMethod") foundAuto = true;
+            }
+            Assert.That(foundAuto, Is.True, "AutoMethod should appear in AutoScanMethods");
+        }
+
+        [Test]
+        public void BuildProfile_Respects_CommandIgnore()
+        {
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ProfileTarget), default);
+
+            for (int i = 0; i < profile.AttributeMethods.Length; i++)
+            {
+                Assert.That(profile.AttributeMethods[i].CommandName,
+                    Is.Not.EqualTo("also_ignored"), "[CommandIgnore] attr method must be absent");
+            }
+            for (int i = 0; i < profile.AutoScanMethods.Length; i++)
+            {
+                Assert.That(profile.AutoScanMethods[i].CommandName,
+                    Is.Not.EqualTo("IgnoredInProfile"), "[CommandIgnore] auto method must be absent");
+            }
+        }
+
+        [Test]
+        public void BuildProfile_Respects_ScanUpTo()
+        {
+            // DerivedClass scanned up to BaseClass (exclusive) — BaseMethod absent
+            TypeCommandProfile profile = _scanner.BuildProfile(
+                typeof(DerivedClass), new ScanOptions { ScanUpTo = typeof(BaseClass) });
+
+            for (int i = 0; i < profile.AutoScanMethods.Length; i++)
+            {
+                Assert.That(profile.AutoScanMethods[i].CommandName,
+                    Is.Not.EqualTo("BaseMethod"), "BaseMethod is above boundary and must be absent");
+            }
+
+            bool foundDerived = false;
+            for (int i = 0; i < profile.AutoScanMethods.Length; i++)
+            {
+                if (profile.AutoScanMethods[i].CommandName == "DerivedMethod") foundDerived = true;
+            }
+            Assert.That(foundDerived, Is.True, "DerivedMethod should be in the profile");
+        }
+
+        // ── ScanFromProfile ──────────────────────────────────────────────────────
+
+        private class ScanFromProfileTarget
+        {
+            public bool WasCalled;
+            public int LastValue;
+
+            [Command("fp_attr")]
+            public void AttributeMethod() { WasCalled = true; }
+
+            [Command("fp_devonly", IsDevOnly = true)]
+            public void DevOnlyMethod() { }
+
+            public void AutoMethod(int value) { LastValue = value; }
+            public int AutoProp { get; set; }
+        }
+
+        [Test]
+        public void ScanFromProfile_AttributeMethod_RegistersCorrectly()
+        {
+            var target = new ScanFromProfileTarget();
+            ReserveKey("fp", target);
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ScanFromProfileTarget), default);
+            _scanner.ScanFromProfile(target, "fp", default, InstanceScanMode.Auto, profile);
+
+            Assert.That(_registry.TryGetCommand("fp.fp_attr", out CommandDefinition def), Is.True);
+            def.Callback(Array.Empty<object>());
+            Assert.That(target.WasCalled, Is.True);
+        }
+
+        [Test]
+        public void ScanFromProfile_DevModeOff_SkipsAutoScanEntries()
+        {
+            var target = new ScanFromProfileTarget();
+            ReserveKey("fp", target);
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ScanFromProfileTarget), default);
+            _scanner.ScanFromProfile(target, "fp", new ScanOptions { DevMode = false },
+                InstanceScanMode.Auto, profile);
+
+            Assert.That(_registry.TryGetCommand("fp.AutoMethod", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("fp.get_AutoProp", out _), Is.False);
+        }
+
+        [Test]
+        public void ScanFromProfile_DevModeOn_RegistersAutoScanEntries()
+        {
+            var target = new ScanFromProfileTarget();
+            ReserveKey("fp", target);
+            TypeCommandProfile profile = _scanner.BuildProfile(typeof(ScanFromProfileTarget), default);
+            _scanner.ScanFromProfile(target, "fp", new ScanOptions { DevMode = true },
+                InstanceScanMode.Auto, profile);
+
+            Assert.That(_registry.TryGetCommand("fp.AutoMethod", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("fp.get_AutoProp", out _), Is.True);
+        }
     }
 }
