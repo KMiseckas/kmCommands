@@ -366,6 +366,7 @@ void Awake()
 ```
 
 This ensures:
+
 - **Release builds:** Only explicitly `[Command]`-decorated methods (without `IsDevOnly`) are registered. Auto-scanned and dev-only commands are excluded.
 - **Development builds and editor:** All public members and `IsDevOnly = true` commands are also registered for testing and iteration.
 

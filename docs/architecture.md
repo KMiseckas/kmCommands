@@ -36,10 +36,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                                                                                                                          | Visibility |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Namespace         | Contents                                                                                                                                                                                                                                                                                                                  | Visibility |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `kmCommands`      | `CommandSystem`, `CommandAttribute`, `CommandHostAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`                                                                              | Internal   |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`                                                                            | Internal   |
 
 ## Components
 

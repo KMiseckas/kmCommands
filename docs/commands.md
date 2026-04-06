@@ -929,10 +929,10 @@ public class PlayerController
 
 Auto-scanned properties produce two commands using the C# accessor naming convention:
 
-| Property           | Getter command      | Setter command      |
-| ------------------ | ------------------- | ------------------- |
-| `public int Speed` | `key.get_Speed`     | `key.set_Speed`     |
-| `public string Name` | `key.get_Name`    | `key.set_Name`      |
+| Property             | Getter command  | Setter command  |
+| -------------------- | --------------- | --------------- |
+| `public int Speed`   | `key.get_Speed` | `key.set_Speed` |
+| `public string Name` | `key.get_Name`  | `key.set_Name`  |
 
 Read-only properties produce only a getter command. Write-only properties produce only a setter command. Setter commands are omitted if the property's type has no registered converter.
 
@@ -968,6 +968,7 @@ void OnDestroy()
 ```
 
 Failing to unregister leads to:
+
 - Memory leaks — the target object's entire object graph is kept alive.
 - Continued `InstanceNull` errors on any further execution attempts for that key.
 

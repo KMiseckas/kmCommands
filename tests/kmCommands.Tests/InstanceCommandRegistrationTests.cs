@@ -678,7 +678,7 @@ namespace kmCommands.Tests
                 new ScanOptions { DevMode = false }, InstanceScanMode.AttributeOnly);
 
             string[] names = _system.GetCommandNames();
-            Assert.That(names, Has.No.Member("t4.dev_cmd"),  "IsDevOnly skipped when DevMode off");
+            Assert.That(names, Has.No.Member("t4.dev_cmd"), "IsDevOnly skipped when DevMode off");
             Assert.That(names, Has.No.Member("t4.RegularMethod"), "Auto-scan suppressed in AttributeOnly");
         }
 
