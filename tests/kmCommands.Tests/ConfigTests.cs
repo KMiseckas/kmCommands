@@ -4,6 +4,7 @@
 // See LICENSE file in the project root for full license information.
 
 using System;
+using System.IO;
 using kmCommands.Core;
 using NUnit.Framework;
 
@@ -11,13 +12,14 @@ namespace kmCommands.Tests
 {
     /// <summary>
     /// Tests for the internal <see cref="JsonConfigParser"/> (Task 1) and the full
-    /// config feature (Tasks 2–5): <see cref="ConfigResult"/>, <see cref="CommandConfig"/>,
+    /// config feature (Tasks 2-5): <see cref="ConfigResult"/>, <see cref="CommandConfig"/>,
     /// and <see cref="CommandSystem.Initialize(CommandConfig)"/>.
     /// </summary>
     [TestFixture]
     public class ConfigTests
     {
         private CommandSystem _system;
+        private string _tempFilePath;
 
         [SetUp]
         public void SetUp()
@@ -32,9 +34,15 @@ namespace kmCommands.Tests
             {
                 _system.Shutdown();
             }
+
+            if (_tempFilePath != null && File.Exists(_tempFilePath))
+            {
+                File.Delete(_tempFilePath);
+                _tempFilePath = null;
+            }
         }
 
-        // ── JsonConfigParser direct tests ─────────────────────────────────────────
+        // -- JsonConfigParser direct tests ---------------------------------------
 
         [Test]
         public void Parse_ValidFlatObject_ReturnsNoError()
@@ -160,7 +168,7 @@ namespace kmCommands.Tests
             Assert.That(output.Error, Is.Not.Null);
         }
 
-        // ── ConfigResult factory tests (Task 2) ───────────────────────────────────
+        // -- ConfigResult factory tests (Task 2) ---------------------------------
 
         [Test]
         public void ConfigResult_Ok_SetsSuccessTrue()
@@ -218,6 +226,391 @@ namespace kmCommands.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        // -- CommandConfig defaults ----------------------------------------------
+
+        [Test]
+        public void CommandConfig_Defaults_MatchSystemDefaults()
+        {
+            var config = new CommandConfig();
+
+            Assert.That(config.HistoryCapacity, Is.EqualTo(CommandSystem.DefaultHistoryCapacity));
+            Assert.That(config.DevMode, Is.False);
+        }
+
+        // -- FromJson - valid inputs --------------------------------------------
+
+        [Test]
+        public void FromJson_FullConfig_SetsAllValues()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": 128, \"devMode\": true }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(128));
+            Assert.That(result.Config.DevMode, Is.True);
+        }
+
+        [Test]
+        public void FromJson_PartialConfig_CapacityOnly_DefaultsDevMode()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": 256 }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(256));
+            Assert.That(result.Config.DevMode, Is.False);
+        }
+
+        [Test]
+        public void FromJson_PartialConfig_DevModeOnly_DefaultsCapacity()
+        {
+            var result = CommandConfig.FromJson("{ \"devMode\": true }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.DevMode, Is.True);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(CommandSystem.DefaultHistoryCapacity));
+        }
+
+        [Test]
+        public void FromJson_EmptyObject_AllDefaults()
+        {
+            var result = CommandConfig.FromJson("{}");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(CommandSystem.DefaultHistoryCapacity));
+            Assert.That(result.Config.DevMode, Is.False);
+        }
+
+        [Test]
+        public void FromJson_WhitespaceHeavy_ParsesCorrectly()
+        {
+            var result = CommandConfig.FromJson("{  \"historyCapacity\" :  128  }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(128));
+        }
+
+        [Test]
+        public void FromJson_NegativeCapacity_SucceedsClampingDeferredToInit()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": -5 }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(-5));
+        }
+
+        [Test]
+        public void FromJson_ZeroCapacity_Succeeds()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": 0 }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void FromJson_CaseInsensitiveKeys_Parsed()
+        {
+            var result = CommandConfig.FromJson("{ \"HISTORYCAPACITY\": 100 }");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(100));
+        }
+
+        // -- FromJson - unknown keys (warnings) ----------------------------------
+
+        [Test]
+        public void FromJson_UnknownKey_SuccessWithOneWarning()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": 64, \"unknownKey\": \"foo\" }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+            Assert.That(result.Warnings[0], Does.Contain("unknownKey"));
+        }
+
+        [Test]
+        public void FromJson_TwoUnknownKeys_TwoWarnings()
+        {
+            var result = CommandConfig.FromJson("{ \"a\": 1, \"b\": true }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FromJson_UnknownKeyStringValue_WarningNotError()
+        {
+            var result = CommandConfig.FromJson("{ \"myKey\": \"value\" }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FromJson_UnknownKeyIntValue_WarningNotError()
+        {
+            var result = CommandConfig.FromJson("{ \"myKey\": 99 }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FromJson_UnknownKeyBoolValue_WarningNotError()
+        {
+            var result = CommandConfig.FromJson("{ \"myKey\": false }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FromJson_UnknownKeyNullValue_WarningNotError()
+        {
+            var result = CommandConfig.FromJson("{ \"myKey\": null }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FromJson_SuccessResult_WarningsNeverNull()
+        {
+            var result = CommandConfig.FromJson("{}");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings, Is.Not.Null);
+        }
+
+        // -- FromJson - errors --------------------------------------------------
+
+        [Test]
+        public void FromJson_Null_FailsWithInvalidJson()
+        {
+            var result = CommandConfig.FromJson(null);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.InvalidJson));
+            Assert.That(result.Config, Is.Null);
+        }
+
+        [Test]
+        public void FromJson_EmptyString_FailsWithInvalidJson()
+        {
+            var result = CommandConfig.FromJson("");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.InvalidJson));
+        }
+
+        [Test]
+        public void FromJson_MalformedJson_FailsWithInvalidJson()
+        {
+            var result = CommandConfig.FromJson("{ broken");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.InvalidJson));
+        }
+
+        [Test]
+        public void FromJson_DevModeWrongType_Int_FailsWithTypeMismatch()
+        {
+            var result = CommandConfig.FromJson("{ \"devMode\": 42 }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+            Assert.That(result.Config, Is.Null);
+        }
+
+        [Test]
+        public void FromJson_HistoryCapacityWrongType_Bool_FailsWithTypeMismatch()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": true }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        [Test]
+        public void FromJson_HistoryCapacityWrongType_String_FailsWithTypeMismatch()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": \"128\" }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        [Test]
+        public void FromJson_DevModeWrongType_String_FailsWithTypeMismatch()
+        {
+            var result = CommandConfig.FromJson("{ \"devMode\": \"true\" }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        [Test]
+        public void FromJson_HistoryCapacityNull_FailsWithTypeMismatch()
+        {
+            var result = CommandConfig.FromJson("{ \"historyCapacity\": null }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        // -- FromFile - errors --------------------------------------------------
+
+        [Test]
+        public void FromFile_NonExistentPath_FailsWithFileReadError()
+        {
+            var result = CommandConfig.FromFile("nonexistent_file_that_does_not_exist.json");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.FileReadError));
+            Assert.That(result.Config, Is.Null);
+        }
+
+        [Test]
+        public void FromFile_NullPath_FailsWithFileReadError()
+        {
+            var result = CommandConfig.FromFile(null);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.FileReadError));
+        }
+
+        [Test]
+        public void FromFile_EmptyPath_FailsWithFileReadError()
+        {
+            var result = CommandConfig.FromFile("");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.FileReadError));
+        }
+
+        // -- FromFile - valid temp file -----------------------------------------
+
+        [Test]
+        public void FromFile_ValidTempFile_SuccessWithCorrectValues()
+        {
+            _tempFilePath = Path.GetTempFileName();
+            File.WriteAllText(_tempFilePath, "{ \"historyCapacity\": 200, \"devMode\": true }");
+
+            var result = CommandConfig.FromFile(_tempFilePath);
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(200));
+            Assert.That(result.Config.DevMode, Is.True);
+        }
+
+        [Test]
+        public void FromFile_ValidTempFileEmptyObject_AllDefaults()
+        {
+            _tempFilePath = Path.GetTempFileName();
+            File.WriteAllText(_tempFilePath, "{}");
+
+            var result = CommandConfig.FromFile(_tempFilePath);
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Config.HistoryCapacity, Is.EqualTo(CommandSystem.DefaultHistoryCapacity));
+            Assert.That(result.Config.DevMode, Is.False);
+        }
+
+        // -- Initialize(CommandConfig) - integration ----------------------------
+
+        [Test]
+        public void Initialize_WithConfig_InitializesWithCorrectCapacityAndDevMode()
+        {
+            var config = new CommandConfig { HistoryCapacity = 128, DevMode = true };
+            _system.Initialize(config);
+
+            Assert.That(_system.IsInitialized, Is.True);
+
+            // Verify DevMode is applied by registering a DevOnly command via scan
+            ScanResult scan = _system.Scan(typeof(ConfigDevTarget));
+            bool devOnlyRegistered = false;
+            for (int i = 0; i < scan.Entries.Length; i++)
+            {
+                if (scan.Entries[i].CommandName == "config_devonly_cmd" &&
+                    scan.Entries[i].Result.Success)
+                {
+                    devOnlyRegistered = true;
+                    break;
+                }
+            }
+            Assert.That(devOnlyRegistered, Is.True, "Dev-only command should be registered when DevMode = true");
+        }
+
+        [Test]
+        public void Initialize_WithConfig_WhenAlreadyInitialized_IsNoOp()
+        {
+            _system.Initialize();
+            Assert.That(_system.IsInitialized, Is.True);
+
+            var config = new CommandConfig { HistoryCapacity = 200, DevMode = true };
+            _system.Initialize(config); // should be no-op
+
+            Assert.That(_system.IsInitialized, Is.True);
+        }
+
+        [Test]
+        public void Initialize_WithNullConfig_IsNoOp()
+        {
+            _system.Initialize(null);
+
+            Assert.That(_system.IsInitialized, Is.False);
+        }
+
+        [Test]
+        public void Initialize_WithConfig_AfterShutdown_WorksCorrectly()
+        {
+            _system.Initialize();
+            _system.Shutdown();
+
+            var config = new CommandConfig { HistoryCapacity = 50, DevMode = false };
+            _system.Initialize(config);
+
+            Assert.That(_system.IsInitialized, Is.True);
+        }
+
+        [Test]
+        public void Initialize_WithConfig_ZeroCapacity_ClampedToOne()
+        {
+            var config = new CommandConfig { HistoryCapacity = 0 };
+            _system.Initialize(config);
+
+            Assert.That(_system.IsInitialized, Is.True);
+
+            // Executing a command should record to history (capacity is clamped to 1)
+            _system.Register("test_zero_cap", Array.Empty<CommandParameterInfo>(), _ => null);
+            _system.Execute("test_zero_cap", null);
+            Assert.That(_system.HistoryCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Initialize_WithConfig_HistoryCapacity_Applied()
+        {
+            var config = new CommandConfig { HistoryCapacity = 3 };
+            _system.Initialize(config);
+
+            _system.Register("cmd", Array.Empty<CommandParameterInfo>(), _ => null);
+
+            // Execute more than capacity -- only last 3 should be retained
+            for (int i = 0; i < 5; i++)
+            {
+                _system.Execute("cmd", null);
+            }
+
+            Assert.That(_system.HistoryCount, Is.EqualTo(3));
+        }
+
+        // -- Private target classes for scan tests ------------------------------
+
+        private static class ConfigDevTarget
+        {
+            [Command("config_devonly_cmd", IsDevOnly = true)]
+            public static void DevOnlyCommand() { }
         }
     }
 }
