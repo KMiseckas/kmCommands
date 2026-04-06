@@ -1161,3 +1161,127 @@ CommandSuggestion[] suggestions = snapshot.GetSuggestions("he", myCustomMatcher)
 | `SetSuggestionMatcher(matcher)`    | Subsequent calls use `matcher`                |
 | `SetSuggestionMatcher(null)`       | Reverts to built-in `PrefixSuggestionMatcher` |
 | `Shutdown()` after setting matcher | Matcher reset to `null`                       |
+
+---
+
+## Configuration File Support
+
+`CommandSystem` can be initialised from a JSON configuration file instead of (or in addition to) using code-only `Initialize()` calls. This is useful when you want to keep initialisation settings in a deployable asset rather than baked into code.
+
+> **Security note:** Configuration files must never contain secrets or credentials (API keys, tokens, passwords, etc.).
+
+### `CommandConfig`
+
+`CommandConfig` is a public class that holds the initialisation settings with coded defaults:
+
+| Property          | Type   | Default                             | Description                                        |
+| ----------------- | ------ | ----------------------------------- | -------------------------------------------------- |
+| `HistoryCapacity` | `int`  | `CommandSystem.DefaultHistoryCapacity` | Max history entries. Values < 1 are clamped to 1. |
+| `DevMode`         | `bool` | `false`                             | Enables dev-mode — dev-only commands are included. |
+
+### Writing a Config File
+
+```json
+{
+    "historyCapacity": 128,
+    "devMode": true
+}
+```
+
+Key names are case-insensitive. Unknown keys produce a warning instead of an error, so config files are forward-compatible as the schema grows.
+
+### `CommandConfig.FromFile(string filePath)`
+
+Reads a JSON file and returns a `ConfigResult`:
+
+```csharp
+ConfigResult result = CommandConfig.FromFile("commands.json");
+
+if (!result.Success)
+{
+    Debug.LogError(string.Format("Config error ({0}): {1}", result.Error, result.ErrorMessage));
+    return;
+}
+
+// Log any unknown-key warnings
+for (int i = 0; i < result.Warnings.Length; i++)
+{
+    Debug.LogWarning(result.Warnings[i]);
+}
+
+// Initialise with the parsed config
+_commands.Initialize(result.Config);
+```
+
+### `CommandConfig.FromJson(string json)`
+
+Parses a raw JSON string instead of reading a file. Useful when the config is embedded in another asset or fetched from a remote source:
+
+```csharp
+string json = LoadConfigFromAsset(); // your source
+ConfigResult result = CommandConfig.FromJson(json);
+```
+
+### `CommandSystem.Initialize(CommandConfig config)`
+
+Applies `config.HistoryCapacity` and `config.DevMode`, then initialises the system. Behaviour is identical to:
+
+```csharp
+system.Initialize(historyCapacity: config.HistoryCapacity, devMode: config.DevMode);
+```
+
+- Calling when already initialised is a no-op.
+- Passing `null` is a no-op (system is not initialised).
+- Call `Shutdown()` before re-initialising with a different config.
+
+### `ConfigResult`
+
+Both factory methods return a `ConfigResult` readonly struct:
+
+| Member         | Type            | Description                                                          |
+| -------------- | --------------- | -------------------------------------------------------------------- |
+| `Success`      | `bool`          | `true` when parsing succeeded.                                       |
+| `Config`       | `CommandConfig` | The populated config on success; `null` on failure.                  |
+| `Error`        | `ConfigError`   | The failure code; `ConfigError.None` on success.                     |
+| `ErrorMessage` | `string`        | Human-readable failure description; `null` on success.               |
+| `Warnings`     | `string[]`      | Zero or more warnings (e.g., unknown keys). Never `null` on success. |
+
+### `ConfigError` Enum
+
+| Value           | Cause                                                                        |
+| --------------- | ---------------------------------------------------------------------------- |
+| `None`          | Success.                                                                     |
+| `InvalidJson`   | JSON was null, empty, or structurally malformed.                             |
+| `TypeMismatch`  | A known key had the wrong JSON value type (e.g. `"devMode": 42`).            |
+| `FileReadError` | File path was invalid, the file was not found, or an I/O error occurred.     |
+
+### Minimal Usage Example
+
+```csharp
+// In Awake() or the equivalent bootstrap entry point:
+var result = CommandConfig.FromFile("Assets/StreamingAssets/commands.json");
+
+if (result.Success)
+{
+    _commands.Initialize(result.Config);
+}
+else
+{
+    Debug.LogError(result.ErrorMessage);
+    _commands.Initialize(); // fall back to defaults
+}
+```
+
+### Partial Config
+
+Any key can be omitted. Omitted keys use the same defaults as `new CommandConfig()`:
+
+```json
+{ "historyCapacity": 256 }
+```
+
+An empty object `{}` is valid and applies all defaults — identical to calling `Initialize()` without arguments.
+
+### After `Shutdown()`
+
+Config state is consumed only during `Initialize`. After `Shutdown()`, calling `Initialize(config)` again with a fresh config works correctly.

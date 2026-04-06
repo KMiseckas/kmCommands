@@ -380,3 +380,74 @@ _commands.RegisterInstance(debugHelper, "debug", new ScanOptions { DevMode = tru
 ```
 
 DevMode uses an OR rule: a call-site `DevMode = true` wins over a system-wide `false`, and a system-wide `true` wins over a call-site `false`.
+
+---
+
+## Initialising from a Config File
+
+As an alternative to code-only `Initialize()` calls, you can load settings from a JSON file using `CommandConfig.FromFile`. This is useful when settings such as history buffer size or dev mode should be controlled at deployment time without recompiling.
+
+> **Security note:** Config files must never contain secrets or credentials.
+
+### JSON Config Format
+
+```json
+{
+    "historyCapacity": 128,
+    "devMode": true
+}
+```
+
+Key names are case-insensitive. Any key can be omitted — omitted keys fall back to the same defaults as `new CommandConfig()`. Unknown keys produce a per-key warning string in `ConfigResult.Warnings` but do not prevent the config from being applied.
+
+### Usage in `Awake()`
+
+```csharp
+using kmCommands;
+using UnityEngine;
+
+public class CommandManager : MonoBehaviour
+{
+    private CommandSystem _commands;
+
+    private void Awake()
+    {
+        _commands = new CommandSystem();
+
+        ConfigResult cfg = CommandConfig.FromFile(
+            Application.streamingAssetsPath + "/commands.json");
+
+        if (cfg.Success)
+        {
+            // Log any unknown-key warnings
+            for (int i = 0; i < cfg.Warnings.Length; i++)
+                Debug.LogWarning("[kmCommands] Config warning: " + cfg.Warnings[i]);
+
+            _commands.Initialize(cfg.Config);
+        }
+        else
+        {
+            Debug.LogError(string.Format(
+                "[kmCommands] Config load failed ({0}): {1}", cfg.Error, cfg.ErrorMessage));
+            _commands.Initialize(); // fall back to defaults
+        }
+    }
+
+    private void OnDestroy()
+    {
+        _commands.Shutdown();
+    }
+}
+```
+
+### `ConfigError` Values
+
+| Value           | Cause                                                                    |
+| --------------- | ------------------------------------------------------------------------ |
+| `InvalidJson`   | JSON was null, empty, or structurally malformed.                         |
+| `TypeMismatch`  | A known key had the wrong JSON type (e.g. `"devMode": 42`).              |
+| `FileReadError` | File path was invalid, not found, or an I/O error occurred.              |
+
+### After `Shutdown()`
+
+Config state is consumed only during `Initialize`. After `Shutdown()`, call `CommandConfig.FromFile` again (or use the same `CommandConfig` object) and pass it to `Initialize` to re-initialise with the same settings.
