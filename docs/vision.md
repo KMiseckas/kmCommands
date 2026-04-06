@@ -134,6 +134,7 @@ Execute multiple commands in a single input string using a delimiter.
 - [ ] Execute each segment in sequence
 - [ ] Return aggregated or per-command results
 - [ ] Option: stop-on-failure vs continue-on-failure
+- [ ] Allow commands to return types directly into other commands (commands as arguments by type) i.e: destroy(getPlayer(1)) in command format.
 
 ---
 
