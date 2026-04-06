@@ -187,7 +187,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("player.Heal", out _), Is.True);
         }
@@ -197,7 +197,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.Heal", out CommandDefinition def);
             def.Callback(new object[] { 30 });
@@ -209,7 +209,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.Ping", out CommandDefinition def);
             def.Callback(Array.Empty<object>());
@@ -221,7 +221,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.Ping", out CommandDefinition def);
             object returnValue = def.Callback(Array.Empty<object>());
@@ -233,7 +233,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.GetScore", out CommandDefinition def);
             object returnValue = def.Callback(Array.Empty<object>());
@@ -270,7 +270,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("player.get_Health", out _), Is.True);
             Assert.That(_registry.TryGetCommand("player.set_Health", out _), Is.True);
@@ -281,7 +281,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("player.get_ReadOnlyProp", out _), Is.True);
             Assert.That(_registry.TryGetCommand("player.set_ReadOnlyProp", out _), Is.False);
@@ -292,7 +292,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.get_Health", out CommandDefinition def);
             object value = def.Callback(Array.Empty<object>());
@@ -304,7 +304,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.set_Health", out CommandDefinition def);
             def.Callback(new object[] { 200 });
@@ -316,7 +316,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.set_Health", out CommandDefinition def);
             object returnValue = def.Callback(new object[] { 99 });
@@ -328,7 +328,7 @@ namespace kmCommands.Tests
         {
             var target = new IndexerTarget();
             ReserveKey("idx", target);
-            _scanner.Scan(target, "idx", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "idx", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("idx.get_Item", out _), Is.False);
             Assert.That(_registry.TryGetCommand("idx.set_Item", out _), Is.False);
@@ -342,7 +342,7 @@ namespace kmCommands.Tests
         {
             var target = new GenericMethodTarget();
             ReserveKey("gen", target);
-            ScanResult result = _scanner.Scan(target, "gen", default, InstanceScanMode.Auto);
+            ScanResult result = _scanner.Scan(target, "gen", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             bool hasFailure = false;
             for (int i = 0; i < result.Entries.Length; i++)
@@ -362,7 +362,7 @@ namespace kmCommands.Tests
         {
             var target = new GenericMethodTarget();
             ReserveKey("gen", target);
-            _scanner.Scan(target, "gen", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "gen", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("gen.NormalMethod", out _), Is.True);
         }
@@ -372,7 +372,7 @@ namespace kmCommands.Tests
         {
             var target = new RefParamTarget();
             ReserveKey("ref_target", target);
-            ScanResult result = _scanner.Scan(target, "ref_target", default, InstanceScanMode.Auto);
+            ScanResult result = _scanner.Scan(target, "ref_target", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             bool hasFailure = false;
             for (int i = 0; i < result.Entries.Length; i++)
@@ -391,7 +391,7 @@ namespace kmCommands.Tests
         {
             var target = new UnsupportedParamTarget();
             ReserveKey("bad", target);
-            ScanResult result = _scanner.Scan(target, "bad", default, InstanceScanMode.Auto);
+            ScanResult result = _scanner.Scan(target, "bad", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(result.HasErrors, Is.True);
         }
@@ -434,7 +434,7 @@ namespace kmCommands.Tests
         {
             var target = new PlayerTarget();
             ReserveKey("player", target);
-            _scanner.Scan(target, "player", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("player.Heal", out CommandDefinition def);
             Assert.That(def.IsInstanceCommand, Is.True);
@@ -447,7 +447,7 @@ namespace kmCommands.Tests
         {
             var target = new InstanceNonVoidTarget();
             ReserveKey("calc", target);
-            _scanner.Scan(target, "calc", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "calc", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             _registry.TryGetCommand("calc.ComputeDouble", out CommandDefinition def);
             object result = def.Callback(new object[] { 7 });
@@ -461,7 +461,7 @@ namespace kmCommands.Tests
         {
             var target = new WriteOnlyPropertyTarget();
             ReserveKey("wo", target);
-            _scanner.Scan(target, "wo", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "wo", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("wo.set_WriteOnly", out _), Is.True);
             Assert.That(_registry.TryGetCommand("wo.get_WriteOnly", out _), Is.False);
@@ -474,10 +474,103 @@ namespace kmCommands.Tests
         {
             var target = new StaticCommandTarget();
             ReserveKey("obj", target);
-            _scanner.Scan(target, "obj", default, InstanceScanMode.Auto);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
 
             Assert.That(_registry.TryGetCommand("obj.static_cmd", out _), Is.False);
             Assert.That(_registry.TryGetCommand("obj.NormalMethod", out _), Is.True);
+        }
+
+        // ── New: Auto-scan DevMode filtering ────────────────────────────────────────────
+
+        [Test]
+        public void AutoScan_DevModeOff_SkipsPublicMethods()
+        {
+            var target = new PlayerTarget();
+            ReserveKey("player", target);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("player.Heal", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("player.Ping", out _), Is.False);
+        }
+
+        [Test]
+        public void AutoScan_DevModeOff_SkipsPublicProperties()
+        {
+            var target = new PlayerTarget();
+            ReserveKey("player", target);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("player.get_Health", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("player.set_Health", out _), Is.False);
+        }
+
+        [Test]
+        public void AutoScan_DevModeOff_AttributeDecoratedMethod_StillRegistered()
+        {
+            // [Command] without IsDevOnly is release-safe — always registers regardless of DevMode.
+            var target = new PlayerTarget();
+            ReserveKey("player", target);
+            _scanner.Scan(target, "player", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("player.player_special", out _), Is.True);
+        }
+
+        // ── New: [CommandIgnore] ────────────────────────────────────────────────────────────
+
+        private class CommandIgnoreMethodTarget
+        {
+            [CommandIgnore]
+            public void IgnoredMethod() { }
+            public void VisibleMethod() { }
+
+            [Command("attr_visible")]
+            public void AttributeVisible() { }
+
+            [Command("attr_ignored")]
+            [CommandIgnore]
+            public void AttributeIgnored() { }
+        }
+
+        private class CommandIgnorePropertyTarget
+        {
+            [CommandIgnore]
+            public int IgnoredProp { get; set; }
+            public int VisibleProp { get; set; }
+        }
+
+        [Test]
+        public void CommandIgnore_OnMethod_SkipsAutoScan()
+        {
+            var target = new CommandIgnoreMethodTarget();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("obj.IgnoredMethod", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.VisibleMethod", out _), Is.True);
+        }
+
+        [Test]
+        public void CommandIgnore_OnAttributeDecorated_SkipsRegistration()
+        {
+            // [CommandIgnore] wins over [Command].
+            var target = new CommandIgnoreMethodTarget();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("obj.attr_visible", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("obj.attr_ignored", out _), Is.False);
+        }
+
+        [Test]
+        public void CommandIgnore_OnProperty_SkipsGetterAndSetter()
+        {
+            var target = new CommandIgnorePropertyTarget();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("obj.get_IgnoredProp", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.set_IgnoredProp", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.get_VisibleProp", out _), Is.True);
         }
     }
 }

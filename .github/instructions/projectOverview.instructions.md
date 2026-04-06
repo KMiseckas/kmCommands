@@ -31,6 +31,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `.github/tasks/<feature-slug>/`: `requirements.md`, `design.md`, `tasks.md`.
 - `src/`: core library source.
 - `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
+- `src/CommandIgnoreAttribute.cs`: public `[CommandIgnore]` attribute — prevents a method or property from being registered in any scan mode; overrides `[Command]` when both are present.
 - `src/ScanOptions.cs`: public `ScanOptions` struct controlling dev-mode filtering.
 - `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
 - `src/InstanceScanMode.cs`: public `InstanceScanMode` enum — `Auto` (default) / `AttributeOnly`.
@@ -151,7 +152,7 @@ The `src/` structure currently implements:
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator; four-catch pattern: `TargetInvocationException`+NRE+IsInstanceCommand → InstanceNull; direct NRE+IsInstanceCommand → InstanceNull; other TargetInvocationException → CallbackThrewException; other Exception → CallbackThrewException
 - `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
 - `src/Core/InstanceRegistry.cs` — internal `InstanceRegistry` sealed class; maps key → List<commandName> and key → target; `TryReserveKey`, `TrackCommand`, `TryGetCommandNames`, `RemoveKey`, `Clear`
-- `src/Core/InstanceScanner.cs` — internal `InstanceScanner` sealed class; `Scan(target, key, options, mode)` → `ScanResult`; handles attribute-decorated and auto-scan passes; marks `IsInstanceCommand=true`
+- `src/Core/InstanceScanner.cs` — internal `InstanceScanner` sealed class; `Scan(target, key, options, mode)` → `ScanResult`; applies `[CommandIgnore]` exclusion check; auto-scanned public members (no `[Command]`) are implicitly dev-only and only registered when `ScanOptions.DevMode = true`; marks `IsInstanceCommand=true`
 - `src/Core/InstanceCallbackBuilder.cs` — internal static class; `BuildMethodCallback`, `BuildGetterCallback`, `BuildSetterCallback`; AOT-safe via `Delegate.CreateDelegate`
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.
 - `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct; internal constructor; `CommandName`, `Args`, and `ReturnValue` get-only properties; args snapshot never null.

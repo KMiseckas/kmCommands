@@ -47,8 +47,8 @@ namespace kmCommands.Core
             // Step 2: Auto-scan public declared instance members (only in Auto mode).
             if (mode == InstanceScanMode.Auto)
             {
-                ScanPublicMethods(target, type, instanceKey, entries);
-                ScanPublicProperties(target, type, instanceKey, entries);
+                ScanPublicMethods(target, type, instanceKey, options, entries);
+                ScanPublicProperties(target, type, instanceKey, options, entries);
             }
 
             return new ScanResult(entries.ToArray());
@@ -77,6 +77,9 @@ namespace kmCommands.Core
                 // Skip static methods — they belong to static scan, not instance scan.
                 if (method.IsStatic) continue;
 
+                // [CommandIgnore] overrides [Command] — skip entirely.
+                if (method.GetCustomAttribute<CommandIgnoreAttribute>() != null) continue;
+
                 // Dev-only filter.
                 if (attr.IsDevOnly && !options.DevMode) continue;
 
@@ -99,6 +102,7 @@ namespace kmCommands.Core
             object target,
             Type type,
             string instanceKey,
+            ScanOptions options,
             List<ScanEntry> entries)
         {
             BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
@@ -114,6 +118,12 @@ namespace kmCommands.Core
 
                 // Skip [Command]-decorated methods — already handled in Step 1.
                 if (method.GetCustomAttribute<CommandAttribute>() != null) continue;
+
+                // [CommandIgnore] explicitly opts this member out.
+                if (method.GetCustomAttribute<CommandIgnoreAttribute>() != null) continue;
+
+                // Auto-scanned members are implicitly dev-only.
+                if (!options.DevMode) continue;
 
                 // Generic methods cannot be registered — produce a descriptive failed entry.
                 if (method.IsGenericMethod || method.IsGenericMethodDefinition)
@@ -145,6 +155,7 @@ namespace kmCommands.Core
             object target,
             Type type,
             string instanceKey,
+            ScanOptions options,
             List<ScanEntry> entries)
         {
             BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
@@ -156,6 +167,12 @@ namespace kmCommands.Core
 
                 // Skip indexers.
                 if (property.GetIndexParameters().Length > 0) continue;
+
+                // [CommandIgnore] explicitly opts this member out.
+                if (property.GetCustomAttribute<CommandIgnoreAttribute>() != null) continue;
+
+                // Auto-scanned properties are implicitly dev-only.
+                if (!options.DevMode) continue;
 
                 // Getter command
                 if (property.CanRead && property.GetGetMethod() != null)

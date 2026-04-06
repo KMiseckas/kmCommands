@@ -841,3 +841,111 @@ After `Start`, the commands `player.Heal`, `player.get_Health` are available. Af
 | `instanceKey` is null or empty | `RegistrationError.InvalidInstanceKey`   |
 | `instanceKey` contains `.`     | `RegistrationError.InvalidInstanceKey`   |
 | Same key already registered    | `RegistrationError.DuplicateInstanceKey` |
+
+---
+
+## Instance Command DevMode Safety
+
+### Auto-Scanned Members Are Dev-Only by Default
+
+When `RegisterInstance` runs in `InstanceScanMode.Auto`, any public member discovered without a `[Command]` attribute is **implicitly dev-only**. It is only registered when `ScanOptions.DevMode` is `true`.
+
+This prevents accidental exposure of internal APIs in release builds. In a project using `Auto` mode, calling `RegisterInstance(target, key)` (default options) in a production build registers **zero** auto-scanned methods or properties — only explicitly decorated members are registered.
+
+```csharp
+public class GameManager
+{
+    // ✅ Registered in release builds — explicit opt-in via [Command]
+    [Command("restart")]
+    public void RestartGame() { ... }
+
+    // ✅ Registered in dev builds only — explicit dev flag
+    [Command("dump_state", IsDevOnly = true)]
+    public void DumpState() { ... }
+
+    // ⚠ Only registered when DevMode = true (implicitly dev-only)
+    public void ResetSession() { ... }
+
+    // ⚠ Only accessible when DevMode = true (implicitly dev-only)
+    public int FrameCount { get; }
+}
+```
+
+### `[Command]` Is the Release-Safe Opt-In
+
+Placing `[Command("name")]` on an instance method — without `IsDevOnly = true` — is the explicit consent mechanism that registers it **regardless of DevMode**. This is the only way to include a member in release builds through `RegisterInstance`.
+
+```csharp
+// Explicit release-safe registration — always registered
+[Command("heal")]
+public void Heal(int amount) { Health += amount; }
+```
+
+### `[CommandIgnore]` Attribute
+
+Place `[CommandIgnore]` on a public method or property to exclude it from all scan modes. It overrides `[Command]` — if both are present, the member is skipped entirely.
+
+```csharp
+public class PlayerController
+{
+    // Never registered — ignored even in DevMode
+    [CommandIgnore]
+    public void InternalReset() { ... }
+
+    // Also ignored — [CommandIgnore] wins over [Command]
+    [Command("internal_op")]
+    [CommandIgnore]
+    public void InternalOp() { ... }
+
+    // Auto-scanned as a dev-only property
+    public float Speed { get; set; }
+}
+```
+
+`[CommandIgnore]` has no effect on non-public members — they are already excluded from auto-scan.
+
+### Property Naming Convention
+
+Auto-scanned properties produce two commands using the C# accessor naming convention:
+
+| Property           | Getter command      | Setter command      |
+| ------------------ | ------------------- | ------------------- |
+| `public int Speed` | `key.get_Speed`     | `key.set_Speed`     |
+| `public string Name` | `key.get_Name`    | `key.set_Name`      |
+
+Read-only properties produce only a getter command. Write-only properties produce only a setter command. Setter commands are omitted if the property's type has no registered converter.
+
+---
+
+## Instance Command Performance Notes
+
+### `DynamicInvoke` Allocation Cost
+
+Instance command callbacks with one or more parameters use `Delegate.DynamicInvoke` internally, which:
+
+- **Boxes value-type arguments** on each call (e.g., `int`, `float`, `bool` become heap-allocated objects).
+- **Allocates an internal `object[]` argument array** per invocation.
+
+This is acceptable for user-triggered commands (developer consoles, cheat menus, automation scripts) but is a known allocation hotspot if commands are invoked at high frequency. If your workflow triggers instance commands in tight loops, consider wrapping frequently called operations in manually registered `Register()` commands with explicit delegate callbacks that avoid boxing.
+
+---
+
+## Instance Command Lifecycle
+
+### Strong Reference Warning
+
+`RegisterInstance` stores a **strong reference** to the target object inside `InstanceRegistry`. If `UnregisterInstance` is never called (e.g., `OnDestroy` is missing in a Unity MonoBehaviour), the registered object **cannot be garbage-collected** for the lifetime of the `CommandSystem`.
+
+The `ExecutionError.InstanceNull` error is a symptom — not a substitute for proper cleanup:
+
+```csharp
+// OnDestroy must always call UnregisterInstance to release the strong reference
+void OnDestroy()
+{
+    _commandSystem.UnregisterInstance("player");
+}
+```
+
+Failing to unregister leads to:
+- Memory leaks — the target object's entire object graph is kept alive.
+- Continued `InstanceNull` errors on any further execution attempts for that key.
