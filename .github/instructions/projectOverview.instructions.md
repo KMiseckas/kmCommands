@@ -38,7 +38,10 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/InstanceScanMode.cs`: public `InstanceScanMode` enum — `Auto` (default) / `AttributeOnly`.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.
 - `src/Results/UnregisterResult.cs`: public `UnregisterResult` readonly struct — result of `UnregisterInstance` with `Success`, `RemovedCount`, `ErrorMessage`.
-- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `TypeCommandProfile`, `TypeCommandProfileCache`).
+- `src/CommandSuggestion.cs`: public `CommandSuggestion` readonly struct — immutable value carrying `CommandName`, `Parameters` (never null), `Description` (never null); `internal` constructor.
+- `src/ISuggestionMatcher.cs`: public `ISuggestionMatcher` interface — single `IList<string> Match(string prefix, string[] commandNames)` method; no generic type parameters (AOT-safe).
+- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `TypeCommandProfile`, `TypeCommandProfileCache`, `PrefixSuggestionMatcher`).
+- `src/Core/PrefixSuggestionMatcher.cs`: internal `PrefixSuggestionMatcher` sealed class — default stateless `ISuggestionMatcher`; case-insensitive ordinal prefix matching; null/empty prefix returns all names; no sort after loop.
 - `src/Core/TypeCommandProfile.cs`: internal `TypeCommandProfile` sealed class — immutable per-type cache of validated member metadata (`AttributeMethods[]`, `AutoScanMethods[]`, `AutoScanProperties[]`).
 - `src/Core/TypeCommandProfileCache.cs`: internal `TypeCommandProfileCache` sealed class — `Dictionary<Type, TypeCommandProfile>` backing store with `TryGet`, `Add`, `Clear`.
 - `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`); `ScanResult` exposes `IsAlreadyInitialized` (bool) and internal `AlreadyInitialized()` factory.
@@ -96,6 +99,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Pre-Scan API: `ScanCommandHosts(Type[])`, `ScanCommandHosts(Type[], ScanOptions)`, `ScanCommandHosts(Assembly[])`, `ScanCommandHosts(Assembly[], ScanOptions)` — pre-scans `[CommandHost]`-decorated types and caches `TypeCommandProfile`; non-decorated types are silently skipped; DevMode deferred to `RegisterInstance` time; `ScanUpTo` applied at build time.
 - Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output. Successful executions are recorded to the history buffer. `ExecutionError.InstanceNull` is returned when an instance command's bound target is null/destroyed.
 - Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
+- Suggestion API: `GetSuggestions(prefix)`, `GetSuggestions(prefix, matcher)` on `CommandSystem` — return `CommandSuggestion[]` (never null); safe before `Initialize()` / after `Shutdown()` (returns empty array). `SetSuggestionMatcher(matcher)` sets the global `ISuggestionMatcher`; `null` reverts to built-in `PrefixSuggestionMatcher`; `Shutdown()` resets the global matcher. `CommandMetadataSnapshot.GetSuggestions(prefix)` / `GetSuggestions(prefix, matcher)` mirror the live API but read from the snapshot's captured state.
 - History API: `DefaultHistoryCapacity` constant (64); `Initialize(int historyCapacity)` overload (capacity clamped to ≥ 1); `GetHistory()` returns `CommandHistoryEntry[]` snapshot (oldest→newest); `HistoryCount` property (non-allocating); `ClearHistory()` clears the buffer. All history members are safe before `Initialize()` and after `Shutdown()`.
 
 ## Typical Unity Client Usage
@@ -139,7 +143,7 @@ Add this header at the top of new source files in `src/`:
 
 The `src/` structure currently implements:
 
-- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, `RegisterConverter`, `RegisterInstance`, `UnregisterInstance` with `_pendingConverters`, `_instanceRegistry`, `_instanceScanner`, `_profileCache`; `_devMode` field; `ResolveEffectiveOptions` helper; all `Initialize()` overloads accept optional `bool devMode = false`; `Scan()` and `RegisterInstance()` pass resolved options to internals; `ScanCommandHosts()` overloads kick off `BuildProfile` and store in cache
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, `RegisterConverter`, `RegisterInstance`, `UnregisterInstance` with `_pendingConverters`, `_instanceRegistry`, `_instanceScanner`, `_profileCache`; `_devMode` field; `ResolveEffectiveOptions` helper; all `Initialize()` overloads accept optional `bool devMode = false`; `Scan()` and `RegisterInstance()` pass resolved options to internals; `ScanCommandHosts()` overloads kick off `BuildProfile` and store in cache; `_defaultMatcher` (`private static readonly ISuggestionMatcher`), `_suggestionMatcher` (nullable instance field), `SetSuggestionMatcher(matcher)`, `GetSuggestions(prefix)`, `GetSuggestions(prefix, matcher)`; `Shutdown()` nulls `_suggestionMatcher`
 - `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
 - `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
 - `src/InstanceScanMode.cs` — public `InstanceScanMode` enum; `Auto=0`, `AttributeOnly=1`
@@ -158,7 +162,10 @@ The `src/` structure currently implements:
 - `src/Core/InstanceRegistry.cs` — internal `InstanceRegistry` sealed class; maps key → List<commandName> and key → target; `TryReserveKey`, `TrackCommand`, `TryGetCommandNames`, `RemoveKey`, `Clear`
 - `src/Core/InstanceScanner.cs` — internal `InstanceScanner` sealed class; `Scan(target, key, options, mode)` → `ScanResult`; applies `[CommandIgnore]` exclusion check; auto-scanned public members (no `[Command]`) are implicitly dev-only and only registered when `ScanOptions.DevMode = true`; marks `IsInstanceCommand=true`
 - `src/Core/InstanceCallbackBuilder.cs` — internal static class; `BuildMethodCallback`, `BuildGetterCallback`, `BuildSetterCallback`; AOT-safe via `Delegate.CreateDelegate`
-- `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.
+- `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup; `GetSuggestions(prefix)` and `GetSuggestions(prefix, matcher)` using snapshot-isolated `_defaultMatcher` static.
+- `src/CommandSuggestion.cs` — public `CommandSuggestion` readonly struct; `internal` constructor; `CommandName`, `Parameters`, `Description` get-only properties; `Parameters` and `Description` never null in library-produced instances.
+- `src/ISuggestionMatcher.cs` — public `ISuggestionMatcher` interface; single non-generic `IList<string> Match(string prefix, string[] commandNames)` method; AOT-safe.
+- `src/Core/PrefixSuggestionMatcher.cs` — internal `PrefixSuggestionMatcher` sealed class; implements `ISuggestionMatcher`; stateless (no fields); case-insensitive ordinal prefix match; null/empty prefix returns all names; no sort after loop.
 - `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct; internal constructor; `CommandName`, `Args`, and `ReturnValue` get-only properties; args snapshot never null.
 - `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class; fixed-size ring buffer; `Record(name, args, returnValue)`, `GetSnapshot()` (oldest→newest), `Clear()`, `Count`.
 

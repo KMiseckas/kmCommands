@@ -206,16 +206,16 @@ Register commands bound to a specific object instance, enabling instance method 
 
 ---
 
-### 🔲 Autocomplete / Command Suggestions
+### ✅ Autocomplete / Command Suggestions
 
 Return ranked command name suggestions and parameter signatures from a partial input string. Enough for a Unity UI layer to render a dropdown or inline hint without doing its own registry work.
 
-- [ ] `GetSuggestions(string prefix)` API — returns command names that start with the given prefix (case-insensitive)
-- [ ] Each suggestion includes the command's `CommandParameterInfo` list so the UI can display the full signature
-- [ ] Built-in prefix-match implementation in the library — no third-party dependency required
-- [ ] Consumer can supply an `ISuggestionMatcher` to replace or extend matching (e.g. fuzzy match, ranked scoring)
-- [ ] Works on both the live registry and a `CommandMetadataSnapshot`
-- [ ] Returns an empty list (never null) when there are no matches
+- [x] `GetSuggestions(string prefix)` API — returns command names that start with the given prefix (case-insensitive)
+- [x] Each suggestion includes the command's `CommandParameterInfo` list so the UI can display the full signature
+- [x] Built-in prefix-match implementation in the library — no third-party dependency required
+- [x] Consumer can supply an `ISuggestionMatcher` to replace or extend matching (e.g. fuzzy match, ranked scoring)
+- [x] Works on both the live registry and a `CommandMetadataSnapshot`
+- [x] Returns an empty list (never null) when there are no matches
 
 ---
 

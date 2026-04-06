@@ -26,6 +26,8 @@ namespace kmCommands
     /// </remarks>
     public sealed class CommandSystem
     {
+        private static readonly ISuggestionMatcher _defaultMatcher = new Core.PrefixSuggestionMatcher();
+
         private CommandRegistry _registry;
         private ArgumentConverter _converter;
         private ExecutionHandler _executionHandler;
@@ -35,6 +37,7 @@ namespace kmCommands
         private InstanceScanner _instanceScanner;
         private TypeCommandProfileCache _profileCache;
         private bool _devMode;
+        private ISuggestionMatcher _suggestionMatcher;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
 
@@ -308,6 +311,7 @@ namespace kmCommands
             _profileCache = null;
             _historyBuffer = null;
             _devMode = false;
+            _suggestionMatcher = null;
             _pendingConverters.Clear();
             IsInitialized = false;
         }
@@ -936,6 +940,68 @@ namespace kmCommands
                 return CommandMetadataSnapshot.Empty;
 
             return _registry.BuildSnapshot();
+        }
+
+        /// <summary>
+        /// Sets the global <see cref="ISuggestionMatcher"/> used by the single-argument
+        /// <see cref="GetSuggestions(string)"/> overload when no per-call matcher is supplied.
+        /// Pass <c>null</c> to revert to the built-in <see cref="Core.PrefixSuggestionMatcher"/>.
+        /// <see cref="Shutdown"/> resets the global matcher to <c>null</c>.
+        /// </summary>
+        /// <param name="matcher">The matcher to use globally, or <c>null</c> to use the built-in default.</param>
+        public void SetSuggestionMatcher(ISuggestionMatcher matcher)
+        {
+            _suggestionMatcher = matcher;
+        }
+
+        /// <summary>
+        /// Returns command suggestions for the given prefix using the global or built-in matcher.
+        /// Returns <see cref="Array.Empty{T}()"/> if the system is not initialized.
+        /// </summary>
+        /// <param name="prefix">The partial input string. Null or empty returns all commands.</param>
+        /// <returns>A non-null array of <see cref="CommandSuggestion"/> values in matcher-determined order.</returns>
+        public CommandSuggestion[] GetSuggestions(string prefix)
+        {
+            return GetSuggestions(prefix, null);
+        }
+
+        /// <summary>
+        /// Returns command suggestions for the given prefix using the supplied matcher.
+        /// Falls back to the global matcher then the built-in default when <paramref name="matcher"/> is <c>null</c>.
+        /// Returns <see cref="Array.Empty{T}()"/> if the system is not initialized.
+        /// </summary>
+        /// <param name="prefix">The partial input string. Null or empty returns all commands.</param>
+        /// <param name="matcher">Per-call matcher override. <c>null</c> uses the global/built-in default.</param>
+        /// <returns>A non-null array of <see cref="CommandSuggestion"/> values in matcher-determined order.</returns>
+        public CommandSuggestion[] GetSuggestions(string prefix, ISuggestionMatcher matcher)
+        {
+            if (!IsInitialized)
+                return Array.Empty<CommandSuggestion>();
+
+            ISuggestionMatcher effective = matcher ?? _suggestionMatcher ?? _defaultMatcher;
+            string[] names = _registry.GetAllNames();
+            IList<string> matched = effective.Match(prefix, names);
+
+            if (matched == null || matched.Count == 0)
+                return Array.Empty<CommandSuggestion>();
+
+            CommandSuggestion[] results = new CommandSuggestion[matched.Count];
+            for (int i = 0; i < matched.Count; i++)
+            {
+                string name = matched[i];
+                CommandParameterInfo[] parameters = Array.Empty<CommandParameterInfo>();
+                string description = string.Empty;
+
+                if (_registry.TryGetCommand(name, out Core.CommandDefinition def))
+                {
+                    parameters = def.Parameters;
+                    description = def.Description ?? string.Empty;
+                }
+
+                results[i] = new CommandSuggestion(name, parameters, description);
+            }
+
+            return results;
         }
     }
 }

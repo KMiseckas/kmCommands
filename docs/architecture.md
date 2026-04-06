@@ -25,6 +25,8 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 │  Execute(commandName, args)                         │
 │  Scan(type, options) / Scan(assembly, options)      │
 │  GetHistory() / HistoryCount / ClearHistory()       │
+│  GetSuggestions(prefix) / GetSuggestions(prefix, m) │
+│  SetSuggestionMatcher(matcher)                      │
 └──────┬──────────────┬───────────────┬───────────────┬───────────────┬───────────────┘
        │              │               │               │               │  (kmCommands.Core namespace)
        ▼              ▼               ▼               ▼               ▼
@@ -32,14 +34,18 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 │  Command   │ │  Argument    │ │  Execution     │ │  Attribute       │ │  Command History     │
 │  Registry  │ │  Converter   │ │  Handler       │ │  Scanner         │ │  Buffer              │
 └────────────┘ └──────────────┘ └────────────────┘ └──────────────────┘ └──────────────────────┘
+                                                                          ┌──────────────────────┐
+                                                                          │  Prefix Suggestion   │
+                                                                          │  Matcher (internal)  │
+                                                                          └──────────────────────┘
 ```
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                                                                                                                                                  | Visibility |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `CommandHostAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`                                                                            | Internal   |
+| Namespace         | Contents                                                                                                                                                                                                                                                                                                                                                             | Visibility |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `CommandHostAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, `CommandSuggestion`, `ISuggestionMatcher`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`, `PrefixSuggestionMatcher`                                                                                            | Internal   |
 
 ## Components
 
@@ -54,6 +60,7 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 - **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
 - **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then checks `TypeCommandProfileCache`. On cache hit, delegates to `InstanceScanner.ScanFromProfile()`; on cache miss, delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
 - **Pre-scan cache:** `ScanCommandHosts(Type[])` and `ScanCommandHosts(Assembly[])` pre-scan types decorated with `[CommandHost]` and store their `TypeCommandProfile` in the cache. Only `[CommandHost]`-decorated types are processed; others are silently skipped.
+- **Suggestions:** `GetSuggestions(prefix)` and `GetSuggestions(prefix, matcher)` return `CommandSuggestion[]` from a sorted name snapshot obtained via `_registry.GetAllNames()`. The single-argument overload resolves the matcher via `_suggestionMatcher ?? _defaultMatcher`, where `_defaultMatcher` is a `private static readonly PrefixSuggestionMatcher` (allocated once per AppDomain). `SetSuggestionMatcher(matcher)` sets the instance-level `_suggestionMatcher` field; passing `null` reverts to the built-in default. `Shutdown()` nulls `_suggestionMatcher`. All suggestion methods return `Array.Empty<CommandSuggestion>()` before `Initialize()` or after `Shutdown()`.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry
@@ -270,7 +277,43 @@ CommandSystem.Scan(typeof(PlayerCommands), options)
        → new ScanResult(entries[])
 ```
 
-## Key Design Decisions
+## Suggestion Flow
+
+```
+CommandSystem.GetSuggestions(prefix, matcher)
+  │
+  ├─ [gate] !IsInitialized → return Array.Empty<CommandSuggestion>()
+  │
+  ├─ Resolve effective matcher:
+  │     matcher ?? _suggestionMatcher ?? _defaultMatcher
+  │
+  ├─ names = _registry.GetAllNames()  // sorted string[] snapshot
+  │
+  ├─ matched = effectiveMatcher.Match(prefix, names)
+  │
+  ├─ [matched null or empty] → return Array.Empty<CommandSuggestion>()
+  │
+  └─ for i in 0..matched.Count-1:
+        _registry.TryGetCommand(matched[i], out def)
+        → CommandSuggestion(name, def.Parameters ?? [], def.Description ?? "")
+     → return CommandSuggestion[matched.Count]     // order preserved from matcher
+
+CommandMetadataSnapshot.GetSuggestions(prefix, matcher)
+  → Resolve: matcher ?? _defaultMatcher  (no global field on snapshot)
+  → matched = effectiveMatcher.Match(prefix, CommandNames)
+  → for each name: _entries.TryGetValue + _descriptions.TryGetValue
+  → return CommandSuggestion[]
+```
+
+**Sort preservation invariant:** The library never calls `Array.Sort` or any sort after the matcher returns. The result array order is determined entirely by the matcher's return order.
+
+**Two separate `_defaultMatcher` statics:** `CommandSystem` and `CommandMetadataSnapshot` each declare their own `private static readonly ISuggestionMatcher _defaultMatcher = new PrefixSuggestionMatcher()`. This keeps `CommandMetadataSnapshot` independent of `CommandSystem` state. Two stateless singleton instances carry negligible cost.
+
+### PrefixSuggestionMatcher
+
+The built-in `internal sealed class` in `kmCommands.Core` that implements `ISuggestionMatcher`. Stateless — no fields, no constructor.
+
+- `Match(prefix, commandNames)`: iterates `commandNames` in order; adds names that start with `prefix` (case-insensitive ordinal). Null/empty prefix returns all names. Input is pre-sorted by the registry, so output is already alpha-ordered — no additional sort required.
 
 **Instance-based, no static state.** `CommandSystem` is a plain class. The consumer owns the lifecycle. This is domain-reload safe (Unity editor re-enters play mode without stale state).
 

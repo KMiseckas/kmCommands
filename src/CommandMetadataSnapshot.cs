@@ -25,6 +25,8 @@ namespace kmCommands
                 new Dictionary<string, CommandParameterInfo[]>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
+        private static readonly ISuggestionMatcher _defaultMatcher = new Core.PrefixSuggestionMatcher();
+
         private readonly Dictionary<string, CommandParameterInfo[]> _entries;
         private readonly Dictionary<string, string> _descriptions;
 
@@ -95,6 +97,51 @@ namespace kmCommands
             }
 
             return _descriptions.TryGetValue(name, out description);
+        }
+
+        /// <summary>
+        /// Returns command suggestions for the given prefix using the built-in
+        /// <see cref="Core.PrefixSuggestionMatcher"/>.
+        /// </summary>
+        /// <param name="prefix">The partial input string. Null or empty returns all commands.</param>
+        /// <returns>A non-null array of <see cref="CommandSuggestion"/> values, or empty when no commands match.</returns>
+        public CommandSuggestion[] GetSuggestions(string prefix)
+        {
+            return GetSuggestions(prefix, null);
+        }
+
+        /// <summary>
+        /// Returns command suggestions for the given prefix using the supplied matcher,
+        /// or the built-in default when <paramref name="matcher"/> is <c>null</c>.
+        /// </summary>
+        /// <param name="prefix">The partial input string. Null or empty returns all commands.</param>
+        /// <param name="matcher">Per-call matcher override. <c>null</c> uses the built-in default.</param>
+        /// <returns>A non-null array of <see cref="CommandSuggestion"/> values in matcher-determined order.</returns>
+        public CommandSuggestion[] GetSuggestions(string prefix, ISuggestionMatcher matcher)
+        {
+            ISuggestionMatcher effective = matcher ?? _defaultMatcher;
+            IList<string> matched = effective.Match(prefix, CommandNames);
+
+            if (matched == null || matched.Count == 0)
+                return Array.Empty<CommandSuggestion>();
+
+            CommandSuggestion[] results = new CommandSuggestion[matched.Count];
+            for (int i = 0; i < matched.Count; i++)
+            {
+                string name = matched[i];
+
+                CommandParameterInfo[] parameters;
+                if (!_entries.TryGetValue(name, out parameters) || parameters == null)
+                    parameters = Array.Empty<CommandParameterInfo>();
+
+                string description;
+                if (!_descriptions.TryGetValue(name, out description) || description == null)
+                    description = string.Empty;
+
+                results[i] = new CommandSuggestion(name, parameters, description);
+            }
+
+            return results;
         }
     }
 }

@@ -1043,3 +1043,121 @@ ScanResult result = system.ScanCommandHosts(
     new[] { Assembly.GetExecutingAssembly() },
     new ScanOptions { ScanUpTo = typeof(MonoBehaviour) });
 ```
+
+---
+
+## Command Suggestions
+
+The suggestion API provides ranked command name completions for a partial input string, bundling each match's parameter signature and description into one `CommandSuggestion` value. It is designed to feed a UI autocompletion layer without requiring the consumer to do further registry lookups.
+
+### `CommandSuggestion`
+
+Each result is a `CommandSuggestion` readonly struct:
+
+| Property      | Type                     | Description                                                              |
+| ------------- | ------------------------ | ------------------------------------------------------------------------ |
+| `CommandName` | `string`                 | The registered command name.                                             |
+| `Parameters`  | `CommandParameterInfo[]` | Parameter descriptors. Never null — empty array for zero-param commands. |
+| `Description` | `string`                 | Description from registration. Never null — `string.Empty` when none.    |
+
+`CommandSuggestion` is a `readonly struct`. Only the library produces populated instances; consumers may only observe them.
+
+### `GetSuggestions(string prefix)`
+
+Returns all registered commands whose names begin with `prefix` (case-insensitive ordinal).
+
+```csharp
+CommandSuggestion[] suggestions = system.GetSuggestions("he");
+for (int i = 0; i < suggestions.Length; i++)
+{
+    string name = suggestions[i].CommandName;        // e.g. "health", "help"
+    CommandParameterInfo[] parms = suggestions[i].Parameters;
+    string desc = suggestions[i].Description;
+    // render suggestion in UI...
+}
+```
+
+- `null` or empty `prefix` returns all registered commands.
+- Returns `Array.Empty<CommandSuggestion>()` when not initialized, when no commands match, or after `Shutdown()`. Never returns `null`.
+- Results are returned in the order they were matched (alphabetical for the built-in matcher, since command names are pre-sorted in the registry).
+
+### `GetSuggestions(string prefix, ISuggestionMatcher matcher)`
+
+Per-call override that uses the supplied `matcher` instead of the global or built-in default.
+
+```csharp
+CommandSuggestion[] suggestions = system.GetSuggestions("he", myCustomMatcher);
+```
+
+- Passing `null` as `matcher` falls back to the global matcher (set via `SetSuggestionMatcher`) then the built-in prefix matcher.
+- The library preserves the order returned by the matcher — results are never re-sorted after the matcher returns.
+
+### `SetSuggestionMatcher(ISuggestionMatcher matcher)`
+
+Sets the global `ISuggestionMatcher` used by the single-argument `GetSuggestions(prefix)` overload.
+
+```csharp
+// Use a custom matcher globally
+system.SetSuggestionMatcher(new FuzzyMatcher());
+
+// Revert to built-in prefix matcher
+system.SetSuggestionMatcher(null);
+```
+
+- Accepts `null` to revert to the built-in `PrefixSuggestionMatcher`.
+- Safe to call before or after `Initialize()` — no `IsInitialized` guard.
+- `Shutdown()` resets the global matcher to `null` (built-in default).
+
+### `ISuggestionMatcher`
+
+Consumer-implementable interface for custom matching strategies (fuzzy, scored, etc.):
+
+```csharp
+public class FuzzyMatcher : ISuggestionMatcher
+{
+    public IList<string> Match(string prefix, string[] commandNames)
+    {
+        List<string> results = new List<string>();
+        for (int i = 0; i < commandNames.Length; i++)
+        {
+            if (IsFuzzyMatch(prefix, commandNames[i]))
+                results.Add(commandNames[i]);
+        }
+        return results;
+    }
+
+    private bool IsFuzzyMatch(string prefix, string name) { /* ... */ }
+}
+```
+
+- `prefix` — the partial input; null or empty means "return all".
+- `commandNames` — a sorted snapshot of all registered names at call time.
+- Return value must not be `null` (an empty list is returned for no matches).
+- The library never re-sorts the returned list — return order is preserved exactly.
+
+### `CommandMetadataSnapshot.GetSuggestions`
+
+Snapshot instances expose the same two overloads, working from their captured state:
+
+```csharp
+CommandMetadataSnapshot snapshot = system.GetSnapshot();
+
+// Uses built-in prefix matcher
+CommandSuggestion[] suggestions = snapshot.GetSuggestions("he");
+
+// Per-call custom matcher
+CommandSuggestion[] suggestions = snapshot.GetSuggestions("he", myCustomMatcher);
+```
+
+- No `IsInitialized` guard — the snapshot is self-contained. `CommandMetadataSnapshot.Empty` returns `Array.Empty<CommandSuggestion>()` naturally.
+- Snapshots do not have a global matcher field; the per-call `matcher` parameter falls back directly to the built-in default.
+
+### Lifecycle Behavior
+
+| Event / State                      | `GetSuggestions` return value                 |
+| ---------------------------------- | --------------------------------------------- |
+| Before `Initialize()`              | `Array.Empty<CommandSuggestion>()`            |
+| After `Shutdown()`                 | `Array.Empty<CommandSuggestion>()`            |
+| `SetSuggestionMatcher(matcher)`    | Subsequent calls use `matcher`                |
+| `SetSuggestionMatcher(null)`       | Reverts to built-in `PrefixSuggestionMatcher` |
+| `Shutdown()` after setting matcher | Matcher reset to `null`                       |

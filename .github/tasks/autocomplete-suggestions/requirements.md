@@ -60,6 +60,7 @@ This feature adds a command suggestion API to kmCommands that enables a Unity UI
 **FR-1 — `CommandSuggestion` struct**
 A new public readonly struct `CommandSuggestion` must be introduced.
 It must expose:
+
 - `CommandName` (string) — the registered command name.
 - `Parameters` (`CommandParameterInfo[]`) — the command's parameter list; never null (use empty array when there are no parameters).
 - `Description` (string) — the command's description; empty string when no description was registered (never null).
@@ -72,6 +73,7 @@ The interface must be IL2CPP-safe and must not use generics on the method signat
 **FR-3 — Built-in prefix matcher**
 The library must ship a built-in implementation of `ISuggestionMatcher`.
 This implementation must:
+
 - Match commands whose names start with the given prefix (case-insensitive, ordinal comparison).
 - When the prefix is null or empty string, return all command names.
 - Return matched names in ascending alphabetical order (case-insensitive, ordinal).
@@ -79,6 +81,7 @@ This implementation must:
 
 **FR-4 — `CommandSystem.GetSuggestions(string prefix)`**
 `CommandSystem` must expose `GetSuggestions(string prefix)` returning `CommandSuggestion[]`.
+
 - Uses the globally registered matcher if one has been set; otherwise uses the built-in prefix matcher.
 - Returns an empty (non-null) array when called before `Initialize()` or after `Shutdown()`.
 - Returns an empty (non-null) array when no commands match.
@@ -86,12 +89,14 @@ This implementation must:
 
 **FR-5 — `CommandSystem.GetSuggestions(string prefix, ISuggestionMatcher matcher)`**
 `CommandSystem` must expose a second `GetSuggestions` overload that accepts an explicit `ISuggestionMatcher`.
+
 - Uses the supplied matcher for this call only; does not mutate global state.
 - If `matcher` is null, falls back to the globally registered matcher or the built-in default.
 - Same empty-result guarantees as FR-4.
 
 **FR-6 — `CommandSystem.SetSuggestionMatcher(ISuggestionMatcher matcher)`**
 `CommandSystem` must expose `SetSuggestionMatcher(ISuggestionMatcher matcher)`.
+
 - Replaces the global matcher used by `GetSuggestions(prefix)`.
 - Passing `null` removes the global matcher and reverts to the built-in default.
 - Safe to call before `Initialize()`, between `Initialize()` and `Shutdown()`, and after `Shutdown()`.
@@ -99,18 +104,21 @@ This implementation must:
 
 **FR-7 — `CommandMetadataSnapshot.GetSuggestions(string prefix)`**
 `CommandMetadataSnapshot` must expose `GetSuggestions(string prefix)` returning `CommandSuggestion[]`.
+
 - Uses only the built-in prefix matcher (snapshot has no globally registered matcher).
 - Returns an empty (non-null) array when the snapshot is empty or no commands match.
 - The `CommandMetadataSnapshot.Empty` singleton must return an empty array.
 
 **FR-8 — `CommandMetadataSnapshot.GetSuggestions(string prefix, ISuggestionMatcher matcher)`**
 `CommandMetadataSnapshot` must expose a second `GetSuggestions` overload accepting an explicit `ISuggestionMatcher`.
+
 - Uses the supplied matcher for this call only.
 - If `matcher` is null, falls back to the built-in prefix matcher.
 - Same empty-result guarantees as FR-7.
 
 **FR-9 — Description inclusion**
 Each `CommandSuggestion` result must include the command's description if one was registered.
+
 - `CommandSystem.GetSuggestions` must source descriptions from the live registry.
 - `CommandMetadataSnapshot.GetSuggestions` must source descriptions via existing `TryGetDescription` logic.
 
@@ -129,12 +137,14 @@ The built-in matcher and the result-building path in `CommandSystem` and `Comman
 
 **NFR-2 — Allocation discipline**
 On a successful call returning N results, allocations must be limited to:
+
 - One `CommandSuggestion[]` of length N (the return value).
 - Any internal temporary collection used to gather matched names (reuse via a pooled or stack-local `List<string>` is acceptable).
-No per-element object allocations.
+  No per-element object allocations.
 
 **NFR-3 — IL2CPP / AOT safety**
 All new types and members must be IL2CPP/AOT-safe:
+
 - No `System.Reflection.Emit`, no `dynamic`, no `Delegate.CreateDelegate` with open generics at match time.
 - `ISuggestionMatcher` method signature must not require runtime generic specialization.
 - `CommandSuggestion` must be a `readonly struct` to avoid boxing when stored in arrays.
