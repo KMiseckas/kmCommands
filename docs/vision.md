@@ -267,3 +267,15 @@ Allow `CommandSystem` behaviour to be driven by an external JSON or YAML file lo
 - [ ] Unknown keys in config produce a warning result rather than a hard error — forward compatibility
 - [ ] Config file must never contain secrets (tokens, credentials); documentation must state this explicitly
 - [ ] All config values have coded defaults so a missing file is never an error
+
+---
+
+## Unity Companion Package Ideas
+
+These are not core library features. Each would live in a separate Unity-only package with a `UnityEngine` / `UnityEditor` dependency. Listed here as potential future work.
+
+**kmCommands.Unity.InstanceCommands** — Pre-built `RegisterInstance` helpers for common Unity component types (`Transform`, `Rigidbody`, `Camera`, etc.). Exposes things like `setPosition`, `setRotation`, `setTimeScale` without the consumer writing boilerplate. Relies entirely on the existing Instance Command Registration and auto-scan — no core library changes required.
+
+**kmCommands.Unity.StaticCommands** — A curated set of static command wrappers around common Unity engine functions: `Application.Quit`, `SceneManager.LoadScene`, `Time.timeScale`, `Physics.gravity`, etc. Registered automatically when the package is present.
+
+**kmCommands.Unity.EditorCommands** — Editor-only commands (`UnityEditor` assembly) useful for in-editor dev tooling: things like `Selection`, `AssetDatabase` operations, play-mode toggling. Stripped from all builds outside the Editor.
