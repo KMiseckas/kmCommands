@@ -259,15 +259,16 @@ Natural language command dispatch and autonomous AI agent loops backed by extern
 
 ### 🔲 Configuration File Support
 
-Allow `CommandSystem` behaviour to be driven by an external JSON or YAML file loaded at initialisation, reducing the need for repetitive manual setup in the consumer's bootstrap code.
+Allow `CommandSystem` behaviour to be driven by an external JSON file loaded at initialisation, reducing the need for repetitive manual setup in the consumer's bootstrap code.
 
 - [ ] Consumer passes a config file path (or raw string content) to `Initialize()`; library parses and applies it
-- [ ] Supported formats: JSON and YAML — both handled by a minimal built-in parser with no third-party dependencies
-- [ ] Configurable settings include: chain delimiter, case-sensitivity mode, expression evaluation defaults, and other behavioural flags added by future features
+- [ ] Supported format: JSON only — minimal built-in parser with no third-party dependencies; YAML deferred to a future iteration
+- [ ] Settings in scope for v1 (current implemented features only): `historyCapacity` (int) and `devMode` (bool)
+- [ ] Settings for future features (chain delimiter, case-sensitivity mode, expression evaluation defaults, etc.) are added to the config schema when those features ship — not in v1
 - [ ] Config is applied once at initialisation; no live-reload unless consumer calls `Shutdown()` + `Initialize()` again
 - [ ] Unknown keys in config produce a warning result rather than a hard error — forward compatibility
 - [ ] Config file must never contain secrets (tokens, credentials); documentation must state this explicitly
-- [ ] All config values have coded defaults so a missing file is never an error
+- [ ] All config values have coded defaults so a missing or empty file is never an error
 
 ---
 
