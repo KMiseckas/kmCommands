@@ -159,5 +159,65 @@ namespace kmCommands.Tests
             Assert.That(output.HasError, Is.True);
             Assert.That(output.Error, Is.Not.Null);
         }
+
+        // ── ConfigResult factory tests (Task 2) ───────────────────────────────────
+
+        [Test]
+        public void ConfigResult_Ok_SetsSuccessTrue()
+        {
+            var config = new CommandConfig();
+            var result = ConfigResult.Ok(config, Array.Empty<string>());
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Config, Is.SameAs(config));
+            Assert.That(result.Error, Is.EqualTo(ConfigError.None));
+            Assert.That(result.ErrorMessage, Is.Null);
+            Assert.That(result.Warnings, Is.Not.Null);
+            Assert.That(result.Warnings.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ConfigResult_Ok_WarningsNotNull()
+        {
+            var config = new CommandConfig();
+            var warnings = new[] { "warning one" };
+            var result = ConfigResult.Ok(config, warnings);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Warnings, Is.Not.Null);
+            Assert.That(result.Warnings.Length, Is.EqualTo(1));
+            Assert.That(result.Warnings[0], Is.EqualTo("warning one"));
+        }
+
+        [Test]
+        public void ConfigResult_Fail_SetsSuccessFalse()
+        {
+            var result = ConfigResult.Fail(ConfigError.InvalidJson, "bad json");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Config, Is.Null);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.InvalidJson));
+            Assert.That(result.ErrorMessage, Is.EqualTo("bad json"));
+            Assert.That(result.Warnings, Is.Not.Null);
+            Assert.That(result.Warnings.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ConfigResult_Fail_FileReadError_HasCorrectEnum()
+        {
+            var result = ConfigResult.Fail(ConfigError.FileReadError, "file not found");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.FileReadError));
+        }
+
+        [Test]
+        public void ConfigResult_Fail_TypeMismatch_HasCorrectEnum()
+        {
+            var result = ConfigResult.Fail(ConfigError.TypeMismatch, "type mismatch");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
     }
 }
