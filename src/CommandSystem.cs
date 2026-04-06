@@ -33,6 +33,8 @@ namespace kmCommands
         private CommandHistoryBuffer _historyBuffer;
         private InstanceRegistry _instanceRegistry;
         private InstanceScanner _instanceScanner;
+        private TypeCommandProfileCache _profileCache;
+        private bool _devMode;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
 
@@ -51,13 +53,19 @@ namespace kmCommands
         /// Initializes the command system. Idempotent — calling when already initialized is a no-op.
         /// Uses <see cref="DefaultHistoryCapacity"/> as the history buffer size.
         /// </summary>
-        public void Initialize()
+        /// <param name="devMode">
+        /// When <c>true</c>, sets the system-wide dev mode flag. All subsequent scan and
+        /// <see cref="RegisterInstance"/> operations will behave as if
+        /// <see cref="ScanOptions.DevMode"/> is <c>true</c> unless explicitly overridden.
+        /// </param>
+        public void Initialize(bool devMode = false)
         {
             if (IsInitialized)
             {
                 return;
             }
 
+            _devMode = devMode;
             InitializeCore(DefaultHistoryCapacity);
         }
 
@@ -68,13 +76,17 @@ namespace kmCommands
         /// <param name="historyCapacity">
         /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
         /// </param>
-        public void Initialize(int historyCapacity)
+        /// <param name="devMode">
+        /// When <c>true</c>, sets the system-wide dev mode flag.
+        /// </param>
+        public void Initialize(int historyCapacity, bool devMode = false)
         {
             if (IsInitialized)
             {
                 return;
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
         }
 
@@ -102,15 +114,17 @@ namespace kmCommands
         public ScanResult Initialize(
             Type[] types,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(types, null, options);
+            return RunInitTimeScans(types, null, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -137,15 +151,17 @@ namespace kmCommands
         public ScanResult Initialize(
             Assembly[] assemblies,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(null, assemblies, options);
+            return RunInitTimeScans(null, assemblies, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -176,15 +192,32 @@ namespace kmCommands
             Type[] types,
             Assembly[] assemblies,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(types, assemblies, options);
+            return RunInitTimeScans(types, assemblies, ResolveEffectiveOptions(options));
+        }
+
+        /// <summary>
+        /// Resolves effective <see cref="ScanOptions"/> by OR-merging the system-wide
+        /// <c>_devMode</c> flag with the caller-supplied options.
+        /// If either the system flag or the caller's <c>DevMode</c> is <c>true</c>, the
+        /// effective <c>DevMode</c> is <c>true</c>.
+        /// </summary>
+        private ScanOptions ResolveEffectiveOptions(ScanOptions callerOptions)
+        {
+            if (_devMode && !callerOptions.DevMode)
+            {
+                callerOptions.DevMode = true;
+            }
+            return callerOptions;
         }
 
         /// <summary>
@@ -202,6 +235,7 @@ namespace kmCommands
             _attributeScanner = new AttributeScanner(_registry, _converter);
             _instanceRegistry = new InstanceRegistry();
             _instanceScanner = new InstanceScanner(_registry, _converter, _instanceRegistry);
+            _profileCache = new TypeCommandProfileCache();
 
             foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
             {
@@ -270,7 +304,10 @@ namespace kmCommands
             _instanceRegistry?.Clear();
             _instanceRegistry = null;
             _instanceScanner = null;
+            _profileCache?.Clear();
+            _profileCache = null;
             _historyBuffer = null;
+            _devMode = false;
             _pendingConverters.Clear();
             IsInitialized = false;
         }
@@ -562,7 +599,7 @@ namespace kmCommands
                     "Type argument must not be null.");
             }
 
-            return _attributeScanner.ScanType(type, options);
+            return _attributeScanner.ScanType(type, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -593,7 +630,7 @@ namespace kmCommands
                     "Assembly argument must not be null.");
             }
 
-            return _attributeScanner.ScanAssembly(assembly, options);
+            return _attributeScanner.ScanAssembly(assembly, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -673,7 +710,126 @@ namespace kmCommands
                     string.Format("An instance with key '{0}' is already registered.", instanceKey));
             }
 
-            return _instanceScanner.Scan(target, instanceKey, options, mode);
+            ScanOptions effective = ResolveEffectiveOptions(options);
+
+            if (_profileCache.TryGet(target.GetType(), out TypeCommandProfile profile))
+            {
+                return _instanceScanner.ScanFromProfile(
+                    target, instanceKey, effective, mode, profile);
+            }
+
+            return _instanceScanner.Scan(target, instanceKey, effective, mode);
+        }
+
+        /// <summary>
+        /// Pre-scans the given types and caches their member metadata so that subsequent
+        /// <see cref="RegisterInstance"/> calls for instances of those types skip reflection
+        /// and parameter-validation work.
+        /// </summary>
+        /// <param name="types">Types to pre-scan. Null array and null items are silently skipped.</param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were processed.
+        /// An empty <see cref="ScanResult"/> is returned if <paramref name="types"/> is null.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Type[] types)
+        {
+            return ScanCommandHosts(types, default);
+        }
+
+        /// <summary>
+        /// Pre-scans the given types and caches their member metadata so that subsequent
+        /// <see cref="RegisterInstance"/> calls for instances of those types skip reflection
+        /// and parameter-validation work.
+        /// </summary>
+        /// <param name="types">Types to pre-scan. Null array and null items are silently skipped.</param>
+        /// <param name="options">
+        /// Scan options used to determine the hierarchy depth (<see cref="ScanOptions.ScanUpTo"/>).
+        /// DevMode is resolved at <see cref="RegisterInstance"/> time, not at pre-scan time.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were processed.
+        /// An empty <see cref="ScanResult"/> is returned if <paramref name="types"/> is null.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Type[] types, ScanOptions options)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (types == null)
+            {
+                return new ScanResult(Array.Empty<ScanEntry>());
+            }
+
+            List<ScanEntry> entries = new List<ScanEntry>();
+            for (int i = 0; i < types.Length; i++)
+            {
+                if (types[i] == null) continue;
+                if (types[i].GetCustomAttribute<CommandHostAttribute>() == null) continue;
+                TypeCommandProfile profile = _instanceScanner.BuildProfile(types[i], options);
+                _profileCache.Add(types[i], profile);
+                entries.Add(new ScanEntry(types[i].FullName, RegistrationResult.Ok()));
+            }
+            return new ScanResult(entries.ToArray());
+        }
+
+        /// <summary>
+        /// Pre-scans all types in the given assemblies that are decorated with
+        /// <see cref="CommandHostAttribute"/> and caches their member metadata.
+        /// </summary>
+        /// <param name="assemblies">Assemblies to scan. Null array and null items are silently skipped.</param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were pre-scanned.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Assembly[] assemblies)
+        {
+            return ScanCommandHosts(assemblies, default);
+        }
+
+        /// <summary>
+        /// Pre-scans all types in the given assemblies that are decorated with
+        /// <see cref="CommandHostAttribute"/> and caches their member metadata.
+        /// </summary>
+        /// <param name="assemblies">Assemblies to scan. Null array and null items are silently skipped.</param>
+        /// <param name="options">
+        /// Scan options used to determine the hierarchy depth (<see cref="ScanOptions.ScanUpTo"/>).
+        /// DevMode is resolved at <see cref="RegisterInstance"/> time, not at pre-scan time.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ScanResult"/> recording which types were pre-scanned.
+        /// </returns>
+        public ScanResult ScanCommandHosts(Assembly[] assemblies, ScanOptions options)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (assemblies == null)
+            {
+                return new ScanResult(Array.Empty<ScanEntry>());
+            }
+
+            List<ScanEntry> entries = new List<ScanEntry>();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                if (assemblies[i] == null) continue;
+                Type[] allTypes = assemblies[i].GetTypes();
+                for (int t = 0; t < allTypes.Length; t++)
+                {
+                    Type type = allTypes[t];
+                    if (type.GetCustomAttribute<CommandHostAttribute>() == null) continue;
+                    TypeCommandProfile profile = _instanceScanner.BuildProfile(type, options);
+                    _profileCache.Add(type, profile);
+                    entries.Add(new ScanEntry(type.FullName, RegistrationResult.Ok()));
+                }
+            }
+            return new ScanResult(entries.ToArray());
         }
 
         /// <summary>

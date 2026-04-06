@@ -56,6 +56,7 @@ namespace kmCommands.Tests
 
         private class ThrowingTarget
         {
+            [Command("AlwaysThrows")]
             public void AlwaysThrows()
             {
                 throw new InvalidOperationException("deliberate");
@@ -64,6 +65,7 @@ namespace kmCommands.Tests
 
         private class NullReferenceThrowingTarget
         {
+            [Command("CrashOnNull")]
             public void CrashOnNull()
             {
                 // Unconditionally throws NullReferenceException to simulate destroyed instance.
@@ -166,7 +168,7 @@ namespace kmCommands.Tests
         public void RegisterInstance_DuplicateKey_FirstRegistrationCommandsStillExecutable()
         {
             var target = new PlayerTarget();
-            _system.RegisterInstance(target, "player");
+            _system.RegisterInstance(target, "player", new ScanOptions { DevMode = true });
             _system.RegisterInstance(new PlayerTarget(), "player"); // duplicate — ignored
 
             ExecutionResult result = _system.Execute("player.Ping", Array.Empty<string>());
@@ -179,7 +181,7 @@ namespace kmCommands.Tests
         [Test]
         public void RegisterInstance_Success_CommandsInGetCommandNames()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
 
             string[] names = _system.GetCommandNames();
             Assert.That(names, Does.Contain("player.Heal"));
@@ -189,7 +191,7 @@ namespace kmCommands.Tests
         [Test]
         public void RegisterInstance_Success_TryGetCommandParameters_Works()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
 
             bool found = _system.TryGetCommandParameters("player.Heal", out CommandParameterInfo[] parameters);
             Assert.That(found, Is.True);
@@ -200,7 +202,7 @@ namespace kmCommands.Tests
         [Test]
         public void RegisterInstance_Success_GetSnapshot_ContainsCommands()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
 
             CommandMetadataSnapshot snap = _system.GetSnapshot();
             Assert.That(snap.TryGetParameters("player.Heal", out _), Is.True);
@@ -212,7 +214,7 @@ namespace kmCommands.Tests
         public void Execute_InstanceMethod_Succeeds()
         {
             var target = new PlayerTarget();
-            _system.RegisterInstance(target, "player");
+            _system.RegisterInstance(target, "player", new ScanOptions { DevMode = true });
 
             ExecutionResult result = _system.Execute("player.Heal", new[] { "50" });
             Assert.That(result.Success, Is.True);
@@ -223,7 +225,7 @@ namespace kmCommands.Tests
         public void Execute_PropertyGetter_ReturnsValue()
         {
             var target = new PlayerTarget();
-            _system.RegisterInstance(target, "player");
+            _system.RegisterInstance(target, "player", new ScanOptions { DevMode = true });
 
             ExecutionResult result = _system.Execute("player.get_Health", Array.Empty<string>());
             Assert.That(result.Success, Is.True);
@@ -235,7 +237,7 @@ namespace kmCommands.Tests
         public void Execute_PropertySetter_UpdatesValue()
         {
             var target = new PlayerTarget();
-            _system.RegisterInstance(target, "player");
+            _system.RegisterInstance(target, "player", new ScanOptions { DevMode = true });
 
             ExecutionResult result = _system.Execute("player.set_Health", new[] { "200" });
             Assert.That(result.Success, Is.True);
@@ -348,7 +350,7 @@ namespace kmCommands.Tests
         {
             var target = new EnemyTarget();
             // EnemyTarget: Name (get+set), Damage (get+set) = 4 property commands; no public methods
-            _system.RegisterInstance(target, "enemy");
+            _system.RegisterInstance(target, "enemy", new ScanOptions { DevMode = true });
 
             UnregisterResult result = _system.UnregisterInstance("enemy");
             Assert.That(result.Success, Is.True);
@@ -358,7 +360,7 @@ namespace kmCommands.Tests
         [Test]
         public void UnregisterInstance_CommandsGoneFromGetCommandNames()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
             _system.UnregisterInstance("player");
 
             string[] names = _system.GetCommandNames();
@@ -373,7 +375,7 @@ namespace kmCommands.Tests
         [Test]
         public void UnregisterInstance_CommandsGoneFromGetSnapshot()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
             _system.UnregisterInstance("player");
 
             CommandMetadataSnapshot snap = _system.GetSnapshot();
@@ -383,7 +385,7 @@ namespace kmCommands.Tests
         [Test]
         public void UnregisterInstance_Execute_ReturnsCommandNotFound()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
             _system.UnregisterInstance("player");
 
             ExecutionResult result = _system.Execute("player.Ping", Array.Empty<string>());
@@ -424,8 +426,10 @@ namespace kmCommands.Tests
             var target = new DevOnlyTarget();
             _system.RegisterInstance(target, "obj", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
 
+            // [Command(IsDevOnly=true)] skipped because DevMode is off.
             Assert.That(_system.GetCommandNames(), Does.Not.Contain("obj.dev_cmd"));
-            Assert.That(_system.GetCommandNames(), Does.Contain("obj.RegularMethod"));
+            // Auto-scanned RegularMethod is also skipped — implicitly dev-only.
+            Assert.That(_system.GetCommandNames(), Does.Not.Contain("obj.RegularMethod"));
         }
 
         [Test]
@@ -443,7 +447,7 @@ namespace kmCommands.Tests
         public void RegisterInstance_ObjectInheritedMethods_NotInCommandNames()
         {
             var target = new EnemyTarget();
-            _system.RegisterInstance(target, "enemy");
+            _system.RegisterInstance(target, "enemy", new ScanOptions { DevMode = true });
 
             string[] names = _system.GetCommandNames();
             Assert.That(names, Does.Not.Contain("enemy.GetHashCode"));
@@ -458,7 +462,7 @@ namespace kmCommands.Tests
         public void RegisterInstance_WriteOnlyProperty_ProducesOnlySetCommand()
         {
             var target = new WriteOnlyPropTarget();
-            _system.RegisterInstance(target, "wo");
+            _system.RegisterInstance(target, "wo", new ScanOptions { DevMode = true });
 
             string[] names = _system.GetCommandNames();
             Assert.That(names, Does.Contain("wo.set_WriteOnly"));
@@ -471,7 +475,7 @@ namespace kmCommands.Tests
         public void RegisterInstance_RefParamMethod_ProducesFailedScanEntry()
         {
             var target = new RefParamClassTarget();
-            ScanResult result = _system.RegisterInstance(target, "obj");
+            ScanResult result = _system.RegisterInstance(target, "obj", new ScanOptions { DevMode = true });
 
             bool hasFailure = false;
             for (int i = 0; i < result.Entries.Length; i++)
@@ -493,7 +497,7 @@ namespace kmCommands.Tests
         public void Execute_NonVoidInstanceMethod_HistoryEntryHasReturnValue()
         {
             var target = new NonVoidMethodTarget();
-            _system.RegisterInstance(target, "calc");
+            _system.RegisterInstance(target, "calc", new ScanOptions { DevMode = true });
 
             _system.Execute("calc.Double", new[] { "5" });
 
@@ -506,7 +510,7 @@ namespace kmCommands.Tests
         public void Execute_VoidInstanceMethod_HistoryEntryHasNullReturnValue()
         {
             var target = new PlayerTarget();
-            _system.RegisterInstance(target, "player");
+            _system.RegisterInstance(target, "player", new ScanOptions { DevMode = true });
 
             _system.Execute("player.Ping", Array.Empty<string>());
 
@@ -520,7 +524,7 @@ namespace kmCommands.Tests
         [Test]
         public void UnregisterInstance_TryGetCommandParameters_ReturnsFalse()
         {
-            _system.RegisterInstance(new PlayerTarget(), "player");
+            _system.RegisterInstance(new PlayerTarget(), "player", new ScanOptions { DevMode = true });
             _system.UnregisterInstance("player");
 
             bool found = _system.TryGetCommandParameters("player.Heal", out _);
@@ -542,7 +546,7 @@ namespace kmCommands.Tests
         public void RegisterInstance_CleanScan_EntriesContainRegisteredCommands()
         {
             var target = new EnemyTarget();
-            ScanResult result = _system.RegisterInstance(target, "enemy");
+            ScanResult result = _system.RegisterInstance(target, "enemy", new ScanOptions { DevMode = true });
 
             // EnemyTarget: Name (get+set), Damage (get+set) = 4 property commands + 0 public methods
             Assert.That(result.Entries.Length, Is.GreaterThan(0));
@@ -556,6 +560,138 @@ namespace kmCommands.Tests
                 }
             }
             Assert.That(hasEntry, Is.True);
+        }
+
+        // ── ScanCommandHosts ──────────────────────────────────────────────────────
+
+        [CommandHost]
+        private class HostTarget
+        {
+            [Command("host_cmd")]
+            public void HostMethod() { }
+            public void AutoHostMethod() { }
+        }
+
+        private class NonHostTarget
+        {
+            [Command("nonhost_cmd")]
+            public void NonHostMethod() { }
+        }
+
+        [Test]
+        public void ScanCommandHosts_NonCommandHostType_SilentlySkipped()
+        {
+            ScanResult result = _system.ScanCommandHosts(new[] { typeof(NonHostTarget) });
+            Assert.That(result.HasErrors, Is.False);
+            Assert.That(result.Entries.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ScanCommandHosts_CommandHostType_CachesProfile()
+        {
+            _system.ScanCommandHosts(new[] { typeof(HostTarget) });
+            var target = new HostTarget();
+            ScanResult result = _system.RegisterInstance(
+                target, "host", new ScanOptions { DevMode = true });
+
+            Assert.That(result.HasErrors, Is.False);
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("host.host_cmd"));
+            Assert.That(names, Has.Member("host.AutoHostMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_ForPreScannedType_ProducesSameCommandsAsColdScan()
+        {
+            // Cold-scan first instance
+            var cold = new HostTarget();
+            ScanResult coldResult = _system.RegisterInstance(
+                cold, "cold", new ScanOptions { DevMode = true });
+
+            // Pre-scan then register second instance
+            _system.ScanCommandHosts(new[] { typeof(HostTarget) });
+            var hot = new HostTarget();
+            ScanResult hotResult = _system.RegisterInstance(
+                hot, "hot", new ScanOptions { DevMode = true });
+
+            // Both should produce same number of successful entries
+            int coldSuccess = 0;
+            int hotSuccess = 0;
+            for (int i = 0; i < coldResult.Entries.Length; i++)
+            {
+                if (coldResult.Entries[i].Result.Success) coldSuccess++;
+            }
+            for (int i = 0; i < hotResult.Entries.Length; i++)
+            {
+                if (hotResult.Entries[i].Result.Success) hotSuccess++;
+            }
+            Assert.That(hotSuccess, Is.EqualTo(coldSuccess));
+        }
+
+        // ── Task 5: 4-arg RegisterInstance with ScanOptions ──────────────────────
+
+        private class ExplicitCommandTarget
+        {
+            [Command("explicit_cmd")]
+            public void ExplicitMethod() { }
+            public void PublicAutoMethod() { }
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOff_SkipsAutoScannedMembers()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t1",
+                new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.No.Member("t1.RegularMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOn_IncludesAutoScannedMembers()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t2",
+                new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t2.RegularMethod"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_DevModeOff_RegistersExplicitCommandAttribute()
+        {
+            var target = new ExplicitCommandTarget();
+            _system.RegisterInstance(target, "t3",
+                new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t3.explicit_cmd"));
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_AttributeOnlyMode_DevModeOff()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t4",
+                new ScanOptions { DevMode = false }, InstanceScanMode.AttributeOnly);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.No.Member("t4.dev_cmd"), "IsDevOnly skipped when DevMode off");
+            Assert.That(names, Has.No.Member("t4.RegularMethod"), "Auto-scan suppressed in AttributeOnly");
+        }
+
+        [Test]
+        public void RegisterInstance_4Arg_AttributeOnlyMode_DevModeOn()
+        {
+            var target = new DevOnlyTarget();
+            _system.RegisterInstance(target, "t5",
+                new ScanOptions { DevMode = true }, InstanceScanMode.AttributeOnly);
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("t5.dev_cmd"), "IsDevOnly registered when DevMode on");
+            Assert.That(names, Has.No.Member("t5.RegularMethod"), "Auto-scan suppressed in AttributeOnly");
         }
     }
 }
