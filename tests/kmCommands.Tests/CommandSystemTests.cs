@@ -206,4 +206,127 @@ namespace kmCommands.Tests
             Assert.That(result.Success, Is.True);
         }
     }
+
+    [TestFixture]
+    public class SystemWideDevModeTests
+    {
+        private CommandSystem _system;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _system = new CommandSystem();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (_system.IsInitialized)
+                _system.Shutdown();
+        }
+
+        private class AutoScanTarget
+        {
+            public void PublicAutoMethod() { }
+            public int AutoProp { get; set; }
+
+            [Command("explicit_cmd")]
+            public void ExplicitCommand() { }
+
+            [Command("dev_only_cmd", IsDevOnly = true)]
+            public void DevOnlyCommand() { }
+        }
+
+        private class StaticCommandTarget
+        {
+            [Command("static_cmd")]
+            public static void StaticCmd() { }
+
+            [Command("static_dev_cmd", IsDevOnly = true)]
+            public static void StaticDevCmd() { }
+        }
+
+        [Test]
+        public void Initialize_WithDevModeTrue_AutoScanMembersRegistered()
+        {
+            _system.Initialize(devMode: true);
+            _system.RegisterInstance(new AutoScanTarget(), "obj");
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("obj.PublicAutoMethod"));
+            Assert.That(names, Has.Member("obj.get_AutoProp"));
+        }
+
+        [Test]
+        public void Initialize_WithDevModeFalse_AutoScanMembersNotRegistered()
+        {
+            _system.Initialize(devMode: false);
+            _system.RegisterInstance(new AutoScanTarget(), "obj");
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.No.Member("obj.PublicAutoMethod"));
+            Assert.That(names, Has.No.Member("obj.get_AutoProp"));
+        }
+
+        [Test]
+        public void Initialize_WithDevModeTrue_ExplicitCommandAlwaysRegistered()
+        {
+            _system.Initialize(devMode: true);
+            _system.RegisterInstance(new AutoScanTarget(), "obj");
+
+            Assert.That(_system.GetCommandNames(), Has.Member("obj.explicit_cmd"));
+        }
+
+        [Test]
+        public void Initialize_WithDevModeTrue_DevOnlyAttributeCommandRegistered()
+        {
+            _system.Initialize(devMode: true);
+            _system.RegisterInstance(new AutoScanTarget(), "obj");
+
+            Assert.That(_system.GetCommandNames(), Has.Member("obj.dev_only_cmd"));
+        }
+
+        [Test]
+        public void Scan_UsesSystemDevMode_RegistersDevOnlyStaticCommands()
+        {
+            _system.Initialize(devMode: true);
+            ScanResult result = _system.Scan(typeof(StaticCommandTarget));
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("static_cmd"));
+            Assert.That(names, Has.Member("static_dev_cmd"));
+        }
+
+        [Test]
+        public void Scan_WithoutSystemDevMode_SkipsDevOnlyStaticCommands()
+        {
+            _system.Initialize(devMode: false);
+            _system.Scan(typeof(StaticCommandTarget));
+
+            string[] names = _system.GetCommandNames();
+            Assert.That(names, Has.Member("static_cmd"));
+            Assert.That(names, Has.No.Member("static_dev_cmd"));
+        }
+
+        [Test]
+        public void Shutdown_ClearsDevModeFlag()
+        {
+            _system.Initialize(devMode: true);
+            _system.Shutdown();
+            _system.Initialize(); // re-init without devMode
+
+            _system.RegisterInstance(new AutoScanTarget(), "obj");
+            Assert.That(_system.GetCommandNames(), Has.No.Member("obj.PublicAutoMethod"));
+        }
+
+        [Test]
+        public void CallerScanOptions_DevModeTrue_OverridesSystemFalse()
+        {
+            // OR semantic: caller DevMode=true activates DevMode for that call even if system flag is false
+            _system.Initialize(devMode: false);
+            _system.RegisterInstance(new AutoScanTarget(), "obj", new ScanOptions { DevMode = true });
+
+            Assert.That(_system.GetCommandNames(), Has.Member("obj.PublicAutoMethod"));
+        }
+    }
 }

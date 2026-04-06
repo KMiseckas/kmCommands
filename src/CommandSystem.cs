@@ -33,6 +33,7 @@ namespace kmCommands
         private CommandHistoryBuffer _historyBuffer;
         private InstanceRegistry _instanceRegistry;
         private InstanceScanner _instanceScanner;
+        private bool _devMode;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
 
@@ -51,13 +52,19 @@ namespace kmCommands
         /// Initializes the command system. Idempotent — calling when already initialized is a no-op.
         /// Uses <see cref="DefaultHistoryCapacity"/> as the history buffer size.
         /// </summary>
-        public void Initialize()
+        /// <param name="devMode">
+        /// When <c>true</c>, sets the system-wide dev mode flag. All subsequent scan and
+        /// <see cref="RegisterInstance"/> operations will behave as if
+        /// <see cref="ScanOptions.DevMode"/> is <c>true</c> unless explicitly overridden.
+        /// </param>
+        public void Initialize(bool devMode = false)
         {
             if (IsInitialized)
             {
                 return;
             }
 
+            _devMode = devMode;
             InitializeCore(DefaultHistoryCapacity);
         }
 
@@ -68,13 +75,17 @@ namespace kmCommands
         /// <param name="historyCapacity">
         /// The maximum number of history entries to retain. Values less than 1 are clamped to 1.
         /// </param>
-        public void Initialize(int historyCapacity)
+        /// <param name="devMode">
+        /// When <c>true</c>, sets the system-wide dev mode flag.
+        /// </param>
+        public void Initialize(int historyCapacity, bool devMode = false)
         {
             if (IsInitialized)
             {
                 return;
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
         }
 
@@ -102,15 +113,17 @@ namespace kmCommands
         public ScanResult Initialize(
             Type[] types,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(types, null, options);
+            return RunInitTimeScans(types, null, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -137,15 +150,17 @@ namespace kmCommands
         public ScanResult Initialize(
             Assembly[] assemblies,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(null, assemblies, options);
+            return RunInitTimeScans(null, assemblies, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -176,15 +191,32 @@ namespace kmCommands
             Type[] types,
             Assembly[] assemblies,
             ScanOptions options = default,
-            int historyCapacity = DefaultHistoryCapacity)
+            int historyCapacity = DefaultHistoryCapacity,
+            bool devMode = false)
         {
             if (IsInitialized)
             {
                 return ScanResult.AlreadyInitialized();
             }
 
+            _devMode = devMode;
             InitializeCore(historyCapacity);
-            return RunInitTimeScans(types, assemblies, options);
+            return RunInitTimeScans(types, assemblies, ResolveEffectiveOptions(options));
+        }
+
+        /// <summary>
+        /// Resolves effective <see cref="ScanOptions"/> by OR-merging the system-wide
+        /// <c>_devMode</c> flag with the caller-supplied options.
+        /// If either the system flag or the caller's <c>DevMode</c> is <c>true</c>, the
+        /// effective <c>DevMode</c> is <c>true</c>.
+        /// </summary>
+        private ScanOptions ResolveEffectiveOptions(ScanOptions callerOptions)
+        {
+            if (_devMode && !callerOptions.DevMode)
+            {
+                callerOptions.DevMode = true;
+            }
+            return callerOptions;
         }
 
         /// <summary>
@@ -271,6 +303,7 @@ namespace kmCommands
             _instanceRegistry = null;
             _instanceScanner = null;
             _historyBuffer = null;
+            _devMode = false;
             _pendingConverters.Clear();
             IsInitialized = false;
         }
@@ -562,7 +595,7 @@ namespace kmCommands
                     "Type argument must not be null.");
             }
 
-            return _attributeScanner.ScanType(type, options);
+            return _attributeScanner.ScanType(type, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -593,7 +626,7 @@ namespace kmCommands
                     "Assembly argument must not be null.");
             }
 
-            return _attributeScanner.ScanAssembly(assembly, options);
+            return _attributeScanner.ScanAssembly(assembly, ResolveEffectiveOptions(options));
         }
 
         /// <summary>
@@ -673,7 +706,7 @@ namespace kmCommands
                     string.Format("An instance with key '{0}' is already registered.", instanceKey));
             }
 
-            return _instanceScanner.Scan(target, instanceKey, options, mode);
+            return _instanceScanner.Scan(target, instanceKey, ResolveEffectiveOptions(options), mode);
         }
 
         /// <summary>

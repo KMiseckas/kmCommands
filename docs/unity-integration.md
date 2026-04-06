@@ -329,3 +329,53 @@ _commands.RegisterInstance(this, "player", default, InstanceScanMode.AttributeOn
 ```
 
 With `AttributeOnly`, only methods and properties decorated with `[Command]` are registered. Public methods without the attribute are ignored.
+
+---
+
+## DevMode Configuration
+
+### System-Wide DevMode Flag
+
+All `Initialize()` overloads accept an optional `devMode` parameter. When `true`, the system-wide DevMode flag is set and applies to all subsequent `Scan()` and `RegisterInstance()` operations — you do not need to pass `ScanOptions { DevMode = true }` at every call site.
+
+```csharp
+// Enable DevMode for the whole session
+_commands.Initialize(devMode: true);
+
+// RegisterInstance and Scan now behave as if DevMode = true
+_commands.RegisterInstance(playerController, "player");
+_commands.Scan(typeof(DebugCommands));
+```
+
+When `devMode: false` (the default), auto-scanned public members are excluded from all registrations and only explicitly `[Command]`-decorated members with `IsDevOnly = false` are registered.
+
+### Recommended Unity Pattern
+
+Use Unity preprocessor directives to enable DevMode only in editor and development builds:
+
+```csharp
+void Awake()
+{
+    bool isDev = false;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    isDev = true;
+#endif
+    _commands.Initialize(devMode: isDev);
+    RegisterCommands();
+}
+```
+
+This ensures:
+- **Release builds:** Only explicitly `[Command]`-decorated methods (without `IsDevOnly`) are registered. Auto-scanned and dev-only commands are excluded.
+- **Development builds and editor:** All public members and `IsDevOnly = true` commands are also registered for testing and iteration.
+
+### Per-Call Override
+
+Even when the system DevMode is `false`, you can pass `ScanOptions { DevMode = true }` to a specific call to override:
+
+```csharp
+// Force DevMode on for this specific registration
+_commands.RegisterInstance(debugHelper, "debug", new ScanOptions { DevMode = true });
+```
+
+DevMode uses an OR rule: a call-site `DevMode = true` wins over a system-wide `false`, and a system-wide `true` wins over a call-site `false`.
