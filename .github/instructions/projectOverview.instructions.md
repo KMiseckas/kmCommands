@@ -18,8 +18,9 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Core command system (registration + execution) is implemented in `src/`.
 - `src/` contains `CommandSystem`, result types, and internal runtime components.
 - Attribute-based registration (`[Command]`, `ScanOptions`, `AttributeScanner`) is fully implemented.
+- Instance command registration (`RegisterInstance`, `UnregisterInstance`, `InstanceScanner`, `InstanceCallbackBuilder`) is fully implemented.
 - Discovery API (`GetCommandNames`, `TryGetCommandParameters`, `GetSnapshot`) is fully implemented.
-- `tests/` contains `kmCommands.Tests` (`net8.0`) with 186 passing unit tests.
+- `tests/` contains `kmCommands.Tests` (`net8.0`) with 262 passing unit tests.
 - `docs/` contains architecture, Unity integration, and command authoring guides.
 - Main project targets `netstandard2.0` for broad Unity compatibility.
 
@@ -32,13 +33,20 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
 - `src/ScanOptions.cs`: public `ScanOptions` struct controlling dev-mode filtering.
 - `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
+- `src/InstanceScanMode.cs`: public `InstanceScanMode` enum — `Auto` (default) / `AttributeOnly`.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.
-- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`).
+- `src/Results/UnregisterResult.cs`: public `UnregisterResult` readonly struct — result of `UnregisterInstance` with `Success`, `RemovedCount`, `ErrorMessage`.
+- `src/Core/`: runtime internals (`CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`).
 - `src/Results/`: public result structs and error enums (`ScanResult`, `ScanEntry`, `RegistrationResult`, `ExecutionResult`); `ScanResult` exposes `IsAlreadyInitialized` (bool) and internal `AlreadyInitialized()` factory.
-- `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct — immutable record of one successful execution (name + args snapshot).
+- `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct — immutable record of one successful execution (name + args + returnValue snapshot).
 - `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class — fixed-capacity ring buffer storing `CommandHistoryEntry` values.
-- `tests/kmCommands.Tests/`: NUnit test project (186 passing tests as of auto-scan-at-initialize feature).
+- `src/Core/InstanceRegistry.cs`: internal `InstanceRegistry` sealed class — maps instanceKey → command names + target object.
+- `src/Core/InstanceScanner.cs`: internal `InstanceScanner` sealed class — discovers and registers instance members.
+- `src/Core/InstanceCallbackBuilder.cs`: internal static class — builds AOT-safe instance-bound delegates.
+- `tests/kmCommands.Tests/`: NUnit test project (262 passing tests).
 - `tests/kmCommands.Tests/AutoScanAtInitializeTests.cs`: 25 tests covering all scanning-at-initialize behavior.
+- `tests/kmCommands.Tests/InstanceScannerTests.cs`: 27 tests covering InstanceScanner/InstanceCallbackBuilder internal behavior.
+- `tests/kmCommands.Tests/InstanceCommandRegistrationTests.cs`: integration tests for RegisterInstance/UnregisterInstance public API.
 - `docs/`: architecture and usage documentation.
 
 ## Dependencies And Target Versions
@@ -80,7 +88,8 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - Converter API: `RegisterConverter(Type, TypeConverterDelegate)` returning `RegistrationResult` — registers or overrides a converter for a given `System.Type`; safe before or after `Initialize()`; cleared by `Shutdown()`.
 - Scan API: `Scan(Type, ScanOptions)` and `Scan(Assembly, ScanOptions)` — attribute-based registration; returns `ScanResult` with per-command outcomes.
 - Scan-at-Init API: `Initialize(Type[], ScanOptions, int)`, `Initialize(Assembly[], ScanOptions, int)`, `Initialize(Type[], Assembly[], ScanOptions, int)` — three overloads that initialize the system and scan targets in one call; return an aggregated `ScanResult`; idempotent (already-initialized path returns `ScanResult.IsAlreadyInitialized == true`). History capacity parameter defaults to `DefaultHistoryCapacity`.
-- Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output. Successful executions are recorded to the history buffer.
+- Instance Registration API: `RegisterInstance(target, key)` and `RegisterInstance(target, key, ScanOptions, InstanceScanMode)` — discovers and registers instance-bound commands under `key.commandName`; returns `ScanResult`; guards: `NotInitialized`, `NullTarget`, `InvalidInstanceKey`, `DuplicateInstanceKey`. `UnregisterInstance(key)` removes all commands for that key; returns `UnregisterResult` with `Success`, `RemovedCount`, `ErrorMessage`.
+- Execution API: `Execute(name, string[] args)` with structured `ExecutionResult` output. Successful executions are recorded to the history buffer. `ExecutionError.InstanceNull` is returned when an instance command's bound target is null/destroyed.
 - Discovery API: `GetCommandNames()`, `TryGetCommandParameters(name, out parameters)`, `GetSnapshot()` — read-only registry inspection; safe before `Initialize()` and after `Shutdown()`. `CommandMetadataSnapshot` also exposes `TryGetDescription(name, out description)` for per-command help text.
 - History API: `DefaultHistoryCapacity` constant (64); `Initialize(int historyCapacity)` overload (capacity clamped to ≥ 1); `GetHistory()` returns `CommandHistoryEntry[]` snapshot (oldest→newest); `HistoryCount` property (non-allocating); `ClearHistory()` clears the buffer. All history members are safe before `Initialize()` and after `Shutdown()`.
 
@@ -125,20 +134,25 @@ Add this header at the top of new source files in `src/`:
 
 The `src/` structure currently implements:
 
-- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, and `RegisterConverter` with `_pendingConverters` pre-init buffer
+- `src/CommandSystem.cs` — public entry point, lifecycle, registration, execution, scan API, `RegisterConverter`, `RegisterInstance`, `UnregisterInstance` with `_pendingConverters`, `_instanceRegistry`, `_instanceScanner`
 - `src/CommandAttribute.cs` — public `[Command]` attribute (name + `IsDevOnly` flag)
 - `src/ScanOptions.cs` — public `ScanOptions` struct (`DevMode` bool)
+- `src/InstanceScanMode.cs` — public `InstanceScanMode` enum; `Auto=0`, `AttributeOnly=1`
 - `src/CommandCallback.cs` — public `CommandCallback` delegate; signature `object(object[] args)`; return `null` for void commands
 - `src/TypeConverterDelegate.cs` — public `TypeConverterDelegate` delegate; signature `bool(string input, out object result)`
 - `src/CommandParameterInfo.cs` — public parameter descriptor
-- `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`, `NullConverter`)
+- `src/Results/RegistrationResult.cs` — `RegistrationResult` struct and `RegistrationError` enum (includes `InvalidMethod`, `NullConverter`, `NullTarget`, `DuplicateInstanceKey`, `InvalidInstanceKey`)
 - `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum (includes `InstanceNull`); `ReturnValue` (object) and `HasReturnValue` (bool) properties on success; `Ok(object returnValue = null)` factory
-- `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct; `ScanResult` exposes `IsAlreadyInitialized` (bool) public property and `AlreadyInitialized()` internal factory; internal constructor has optional `bool isAlreadyInitialized = false` parameter.
-- `src/Core/CommandDefinition.cs` — internal command storage model
-- `src/Core/CommandRegistry.cs` — internal dictionary-backed command store
+- `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct; `ScanResult` exposes `IsAlreadyInitialized` (bool) public property, `AlreadyInitialized()` internal factory, and `SystemFailure(error, message)` internal factory.
+- `src/Results/UnregisterResult.cs` — `UnregisterResult` readonly struct; `Success`, `RemovedCount`, `ErrorMessage`; `internal static Ok(int)` / `Fail(string)` factories.
+- `src/Core/CommandDefinition.cs` — internal command storage model; `IsInstanceCommand` bool property (default `false`)
+- `src/Core/CommandRegistry.cs` — internal dictionary-backed command store; `TryRemove(name)` removes by name
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string); extensible via `AddConverter(Type, TryConvertFunc)` internal method
-- `src/Core/ExecutionHandler.cs` — internal execution orchestrator
+- `src/Core/ExecutionHandler.cs` — internal execution orchestrator; four-catch pattern: `TargetInvocationException`+NRE+IsInstanceCommand → InstanceNull; direct NRE+IsInstanceCommand → InstanceNull; other TargetInvocationException → CallbackThrewException; other Exception → CallbackThrewException
 - `src/Core/AttributeScanner.cs` — internal attribute-based command discovery; uses `Delegate.CreateDelegate` for AOT-safe callbacks; 4-parameter max
+- `src/Core/InstanceRegistry.cs` — internal `InstanceRegistry` sealed class; maps key → List<commandName> and key → target; `TryReserveKey`, `TrackCommand`, `TryGetCommandNames`, `RemoveKey`, `Clear`
+- `src/Core/InstanceScanner.cs` — internal `InstanceScanner` sealed class; `Scan(target, key, options, mode)` → `ScanResult`; handles attribute-decorated and auto-scan passes; marks `IsInstanceCommand=true`
+- `src/Core/InstanceCallbackBuilder.cs` — internal static class; `BuildMethodCallback`, `BuildGetterCallback`, `BuildSetterCallback`; AOT-safe via `Delegate.CreateDelegate`
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class; internal constructor; `Empty` singleton; `TryGetParameters()` for O(1) case-insensitive lookup; `TryGetDescription()` for O(1) case-insensitive description lookup.
 - `src/CommandHistoryEntry.cs`: public `CommandHistoryEntry` readonly struct; internal constructor; `CommandName`, `Args`, and `ReturnValue` get-only properties; args snapshot never null.
 - `src/Core/CommandHistoryBuffer.cs`: internal `CommandHistoryBuffer` sealed class; fixed-size ring buffer; `Record(name, args, returnValue)`, `GetSnapshot()` (oldest→newest), `Clear()`, `Count`.

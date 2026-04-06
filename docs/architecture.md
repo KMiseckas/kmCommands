@@ -36,10 +36,10 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 
 ## Namespaces
 
-| Namespace         | Contents                                                                                                                                                                                                                                                  | Visibility |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `CommandDefinition`, `CommandHistoryBuffer`                                                                                                                               | Internal   |
+| Namespace         | Contents                                                                                                                                                                                                                                                                                          | Visibility |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `kmCommands`      | `CommandSystem`, `CommandAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, error enums | Public     |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`                                                                                                     | Internal   |
 
 ## Components
 
@@ -49,9 +49,10 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 
 - **Lifecycle:** Idempotent `Initialize()` / `Initialize(int historyCapacity)` and `Shutdown()`. Calling either method multiple times or out of order is safe.
 - **Scan-at-init overloads:** Three additional `Initialize` overloads accept scan targets (`Type[]`, `Assembly[]`, or both) and a `ScanOptions` value, run attribute-based scanning during initialization, and return an aggregated `ScanResult`. If already initialized, these overloads return `ScanResult.AlreadyInitialized()` immediately without re-scanning. `ScanResult.IsAlreadyInitialized` distinguishes this no-op path from a zero-entry scan result.
-- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`. All are nulled on `Shutdown()`.
+- **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`, `InstanceRegistry`, `InstanceScanner`. All are nulled on `Shutdown()`; `InstanceRegistry.Clear()` is called before nulling.
 - **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
 - **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
+- **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
 ### CommandRegistry
@@ -100,6 +101,14 @@ An `internal sealed class` that orchestrates the full execution path:
 5. Invoke the callback with the converted `object[]`.
 6. Catch any exception thrown by the callback and wrap it in the result.
 
+**Exception handling (three-catch pattern):**
+
+- `TargetInvocationException` where `InnerException is NullReferenceException` **and** `definition.IsInstanceCommand` → `ExecutionError.InstanceNull`.
+- `NullReferenceException` when `definition.IsInstanceCommand` (direct invocation fast-paths that don't wrap in `TargetInvocationException`) → `ExecutionError.InstanceNull`.
+- All other exceptions → `ExecutionError.CallbackThrewException`.
+
+The `IsInstanceCommand` flag gates the `InstanceNull` path, ensuring that static commands which happen to throw `NullReferenceException` are reported as `CallbackThrewException`.
+
 ### CommandDefinition
 
 An `internal sealed class` that stores a command's name, parameter signature (`CommandParameterInfo[]`), callback delegate, and optional description string. Created at registration time and stored in the registry.
@@ -121,6 +130,42 @@ An `internal sealed class` that implements attribute-based discovery and registr
 - **Delegate strategy:** Uses `Delegate.CreateDelegate` to create a strongly-typed `Action` or `Action<T1,...>` intermediate delegate at scan time. The zero-parameter path calls the typed `Action` directly (no `DynamicInvoke`). All other paths wrap with `DynamicInvoke` on the pre-bound typed delegate — AOT-safe on Unity 2021+ IL2CPP.
 - **Parameter limit:** `GetActionDelegateType` supports 1–4 parameters via a `switch`. Commands with 5+ parameters throw `NotSupportedException` at scan time.
 - **Naming conflicts across types:** First-registered-wins. Duplicate names produce a `DuplicateCommandName` failure entry for the later registration.
+
+### CommandDefinition
+
+An `internal sealed class` that stores a command's name, parameter signature (`CommandParameterInfo[]`), callback delegate, optional description string, and `IsInstanceCommand` flag. Created at registration time and stored in the registry.
+
+- `IsInstanceCommand` — `true` for commands registered via `RegisterInstance`; `false` for all static commands registered via `Register()` or `Scan()`. The `ExecutionHandler` reads this flag to determine whether a `NullReferenceException` should be reported as `InstanceNull`.
+
+### InstanceRegistry
+
+An `internal sealed class` that maps instance keys to their command names and target objects. Used by `CommandSystem` to track which commands belong to each registered instance.
+
+- `TryReserveKey(key, target)` — Atomically reserves a key. Returns `false` if already taken.
+- `TrackCommand(key, fullCommandName)` — Records a command name under the key after reservation.
+- `TryGetCommandNames(key, out names)` — Returns the live list of command names; used by `UnregisterInstance`.
+- `RemoveKey(key)` — Removes all data for the key; called by `UnregisterInstance` after commands are removed from `CommandRegistry`.
+- `Clear()` — Clears all keys; called by `CommandSystem.Shutdown()`.
+
+### InstanceScanner
+
+An `internal sealed class` that discovers and registers instance commands on a target's type. Constructed in `CommandSystem.Initialize()` alongside `AttributeScanner`.
+
+- `Scan(target, instanceKey, options, mode)` — Entry point. Returns a `ScanResult` with per-command outcomes.
+- In `Auto` mode, runs two sub-passes: attribute-decorated methods (all access levels, `DeclaredOnly`) and then public declared methods + properties.
+- In `AttributeOnly` mode, only the attribute-decorated pass runs.
+- All registered commands have `IsInstanceCommand = true` on their `CommandDefinition`.
+- Failed commands (generic methods, ref params, unsupported types) are added to the `ScanResult` entries rather than silently skipped.
+- Tracks each successfully registered command name in `InstanceRegistry` via `TrackCommand`.
+
+### InstanceCallbackBuilder
+
+An `internal static class` that builds AOT-safe `CommandCallback` delegates bound to a specific instance.
+
+- `BuildMethodCallback(target, method, parameters)` — Handles zero-param void (direct `Action` invocation), zero-param non-void, and 1–4 param void/non-void via `Delegate.CreateDelegate` + `DynamicInvoke`.
+- `BuildGetterCallback(target, property)` — Returns a callback that reads the property value.
+- `BuildSetterCallback(target, property)` — Returns a callback that writes the property value, always returning `null`.
+- Uses `Delegate.CreateDelegate(type, target, method)` for AOT safety — no `Emit`, `DynamicMethod`, or `Expression.Lambda` compilation at runtime.
 
 ## Data Types
 

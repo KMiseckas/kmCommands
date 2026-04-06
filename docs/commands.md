@@ -4,10 +4,10 @@
 
 A command is a named operation that can be invoked at runtime with typed arguments. In kmCommands, a command consists of:
 
-| Part       | Type                     | Description                                                                   |
-| ---------- | ------------------------ | ----------------------------------------------------------------------------- |
-| Name       | `string`                 | Unique identifier. Lookup is case-insensitive.                                |
-| Parameters | `CommandParameterInfo[]` | Ordered list of name + type pairs describing expected arguments.              |
+| Part       | Type                     | Description                                                                                                             |
+| ---------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Name       | `string`                 | Unique identifier. Lookup is case-insensitive.                                                                          |
+| Parameters | `CommandParameterInfo[]` | Ordered list of name + type pairs describing expected arguments.                                                        |
 | Callback   | `CommandCallback`        | Delegate invoked when the command executes. Returns `null` for void commands or the return value for non-void commands. |
 
 ## Registering a Command
@@ -182,14 +182,14 @@ if (result.Error == ExecutionError.CallbackThrewException)
 
 ### Execution Errors
 
-| `ExecutionError`           | Condition                                            |
-| -------------------------- | ---------------------------------------------------- |
-| `None`                     | Success                                              |
-| `NotInitialized`           | `Initialize()` not called                            |
-| `NullOrEmptyCommandName`   | Command name is null or `""`                         |
-| `CommandNotFound`          | No command registered with that name                 |
-| `ArgumentCountMismatch`    | Wrong number of string tokens                        |
-| `ArgumentConversionFailed` | A token failed to convert to the declared type       |
+| `ExecutionError`           | Condition                                                 |
+| -------------------------- | --------------------------------------------------------- |
+| `None`                     | Success                                                   |
+| `NotInitialized`           | `Initialize()` not called                                 |
+| `NullOrEmptyCommandName`   | Command name is null or `""`                              |
+| `CommandNotFound`          | No command registered with that name                      |
+| `ArgumentCountMismatch`    | Wrong number of string tokens                             |
+| `ArgumentConversionFailed` | A token failed to convert to the declared type            |
 | `CallbackThrewException`   | Callback threw an exception — see `result.Exception`      |
 | `InstanceNull`             | The instance bound to an instance command is null or GC'd |
 
@@ -197,10 +197,10 @@ if (result.Error == ExecutionError.CallbackThrewException)
 
 `ExecutionResult` exposes two additional properties for commands that return a value (e.g., property getters or non-void instance methods):
 
-| Property         | Type     | Description                                                                                    |
-| ---------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `ReturnValue`    | `object` | The boxed return value from the callback, or `null` for void commands and failed executions.   |
-| `HasReturnValue` | `bool`   | `true` when `ReturnValue` is non-null (i.e., the callback returned a value). `false` otherwise.|
+| Property         | Type     | Description                                                                                     |
+| ---------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `ReturnValue`    | `object` | The boxed return value from the callback, or `null` for void commands and failed executions.    |
+| `HasReturnValue` | `bool`   | `true` when `ReturnValue` is non-null (i.e., the callback returned a value). `false` otherwise. |
 
 For void commands, `ReturnValue` is always `null` and `HasReturnValue` is `false`:
 
@@ -685,3 +685,159 @@ No-op when the system is not initialized.
 | `HistoryCount`   | `0`                                   |
 | `GetHistory()`   | `Array.Empty<CommandHistoryEntry>()`  |
 | `ClearHistory()` | no-op (does not throw)                |
+
+---
+
+## Instance Command Registration
+
+Instance commands let you register commands bound to a specific object instance. Each command is automatically namespaced under the instance key using a dot separator (`instanceKey.commandName`). When the instance is destroyed or no longer needed, a single `UnregisterInstance` call removes all associated commands.
+
+### `RegisterInstance`
+
+```csharp
+// Shortest form — auto-discovers all public methods and properties
+ScanResult result = system.RegisterInstance(target, "player");
+
+// With explicit scan mode and options
+ScanResult result = system.RegisterInstance(
+    target,
+    "player",
+    new ScanOptions { DevMode = isDevBuild },
+    InstanceScanMode.Auto);
+```
+
+| Parameter     | Type               | Description                                                                                 |
+| ------------- | ------------------ | ------------------------------------------------------------------------------------------- |
+| `target`      | `object`           | The instance to bind. Must not be `null`.                                                   |
+| `instanceKey` | `string`           | Unique namespace key. Must not be null, empty, or contain `.`. Case-insensitive for lookup. |
+| `options`     | `ScanOptions`      | Controls `IsDevOnly` filtering. Defaults to `new ScanOptions()` (dev mode off).             |
+| `mode`        | `InstanceScanMode` | Controls which members are auto-discovered. Defaults to `InstanceScanMode.Auto`.            |
+
+**Command naming:** A public method `Heal(int)` on an instance registered with key `"player"` produces the command `"player.Heal"`.
+
+**Instance key rules:**
+
+- Must not be null or empty.
+- Must not contain a `.` character (reserved as the key/command separator).
+- Must be unique — re-registering the same key returns `RegistrationError.DuplicateInstanceKey`.
+
+### `InstanceScanMode`
+
+| Value            | Behavior                                                                                                        |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `Auto` (default) | Registers all public instance methods and properties, plus any `[Command]`-decorated private/internal methods.  |
+| `AttributeOnly`  | Registers only members explicitly decorated with `[Command]`. Public members without the attribute are skipped. |
+
+### Auto-Discovered Members
+
+In `Auto` mode, the scanner registers:
+
+- **Public instance methods** — namespaced as `key.MethodName`. Generic methods, `ref`/`out` parameters, and methods with unsupported parameter types produce failed `ScanEntry` results rather than being silently skipped.
+- **Public property getters** — registered as `key.get_PropertyName`. The getter command takes no arguments and returns the property value.
+- **Public property setters** — registered as `key.set_PropertyName` if the property type is a supported converter type. Takes one argument (the new value).
+- **`[Command]`-decorated instance methods** at any access level (public, private, protected, internal).
+
+Not registered in auto mode:
+
+- Methods inherited from `System.Object` (`GetHashCode`, `Equals`, `ToString`, `GetType`).
+- Static methods (use the attribute-based static scan for those).
+- Indexer properties.
+- Property setters whose type has no registered converter.
+
+### Dev-Only Commands on Instances
+
+The `[Command]` attribute's `IsDevOnly` flag works the same way on instance methods as on static ones:
+
+```csharp
+public class PlayerController
+{
+    [Command("player_debug_state", IsDevOnly = true)]
+    private void DumpDebugState()
+    {
+        // Only registered when ScanOptions.DevMode == true
+    }
+}
+```
+
+### `UnregisterInstance`
+
+Removes all commands registered under the given key and releases the bound instance reference:
+
+```csharp
+UnregisterResult result = system.UnregisterInstance("player");
+
+if (result.Success)
+{
+    // result.RemovedCount — how many commands were removed
+}
+else
+{
+    // result.ErrorMessage — why it failed
+}
+```
+
+After a successful unregister, all commands previously under `player.` are gone: `GetCommandNames()`, `TryGetCommandParameters()`, `GetSnapshot()`, and `Execute()` all behave as if those commands were never registered.
+
+### `UnregisterResult`
+
+| Member         | Type     | Description                                                       |
+| -------------- | -------- | ----------------------------------------------------------------- |
+| `Success`      | `bool`   | `true` when the instance was found and all commands were removed. |
+| `RemovedCount` | `int`    | Number of commands removed. `0` on failure.                       |
+| `ErrorMessage` | `string` | Human-readable failure reason, or `null` on success.              |
+
+### `ExecutionError.InstanceNull`
+
+When a bound instance becomes null or is garbage-collected while commands are still registered, executing any of its commands returns `ExecutionError.InstanceNull`:
+
+```csharp
+ExecutionResult result = system.Execute("player.Heal", new[] { "50" });
+if (result.Error == ExecutionError.InstanceNull)
+{
+    // The bound instance was destroyed.
+    // Remove its commands to prevent further errors:
+    system.UnregisterInstance("player");
+}
+```
+
+This error is only possible for instance commands (`IsInstanceCommand == true`). Static commands that throw `NullReferenceException` internally produce `ExecutionError.CallbackThrewException` instead.
+
+### Lifecycle Example (Unity MonoBehaviour)
+
+```csharp
+using kmCommands;
+
+public class PlayerController : MonoBehaviour
+{
+    private CommandSystem _commands;
+
+    void Start()
+    {
+        _commands.RegisterInstance(this, "player");
+    }
+
+    void OnDestroy()
+    {
+        _commands.UnregisterInstance("player");
+    }
+
+    public void Heal(int amount)
+    {
+        Health += amount;
+    }
+
+    public int Health { get; private set; } = 100;
+}
+```
+
+After `Start`, the commands `player.Heal`, `player.get_Health` are available. After `OnDestroy`, they are removed.
+
+### Registration Guard Conditions
+
+| Condition                      | `ScanResult.Entries[0].Result.Error`     |
+| ------------------------------ | ---------------------------------------- |
+| System not initialized         | `RegistrationError.NotInitialized`       |
+| `target` is null               | `RegistrationError.NullTarget`           |
+| `instanceKey` is null or empty | `RegistrationError.InvalidInstanceKey`   |
+| `instanceKey` contains `.`     | `RegistrationError.InvalidInstanceKey`   |
+| Same key already registered    | `RegistrationError.DuplicateInstanceKey` |

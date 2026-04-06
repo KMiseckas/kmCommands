@@ -175,19 +175,19 @@ namespace kmCommands.Tests
                 new CommandParameterInfo("flag",  typeof(bool))
             }, args =>
             {
-                capturedStr   = (string)args[0];
-                capturedInt   = (int)args[1];
+                capturedStr = (string)args[0];
+                capturedInt = (int)args[1];
                 capturedFloat = (float)args[2];
-                capturedBool  = (bool)args[3];
+                capturedBool = (bool)args[3];
                 return null;
             });
 
             ExecutionResult result = _system.Execute("cmd", new[] { "hero", "10", "1.5", "false" });
             Assert.That(result.Success, Is.True);
-            Assert.That(capturedStr,   Is.EqualTo("hero"));
-            Assert.That(capturedInt,   Is.EqualTo(10));
+            Assert.That(capturedStr, Is.EqualTo("hero"));
+            Assert.That(capturedInt, Is.EqualTo(10));
             Assert.That(capturedFloat, Is.EqualTo(1.5f));
-            Assert.That(capturedBool,  Is.EqualTo(false));
+            Assert.That(capturedBool, Is.EqualTo(false));
         }
 
         // â”€â”€ case-insensitive name lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

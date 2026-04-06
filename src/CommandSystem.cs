@@ -31,6 +31,8 @@ namespace kmCommands
         private ExecutionHandler _executionHandler;
         private AttributeScanner _attributeScanner;
         private CommandHistoryBuffer _historyBuffer;
+        private InstanceRegistry _instanceRegistry;
+        private InstanceScanner _instanceScanner;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
 
@@ -198,6 +200,8 @@ namespace kmCommands
             _converter = new ArgumentConverter();
             _executionHandler = new ExecutionHandler(_registry, _converter);
             _attributeScanner = new AttributeScanner(_registry, _converter);
+            _instanceRegistry = new InstanceRegistry();
+            _instanceScanner = new InstanceScanner(_registry, _converter, _instanceRegistry);
 
             foreach (KeyValuePair<Type, TypeConverterDelegate> entry in _pendingConverters)
             {
@@ -263,6 +267,9 @@ namespace kmCommands
             _converter = null;
             _executionHandler = null;
             _attributeScanner = null;
+            _instanceRegistry?.Clear();
+            _instanceRegistry = null;
+            _instanceScanner = null;
             _historyBuffer = null;
             _pendingConverters.Clear();
             IsInitialized = false;
@@ -587,6 +594,127 @@ namespace kmCommands
             }
 
             return _attributeScanner.ScanAssembly(assembly, options);
+        }
+
+        /// <summary>
+        /// Scans an instance target for commands and registers them under the
+        /// <c>instanceKey.commandName</c> naming scheme.
+        /// Uses <see cref="InstanceScanMode.Auto"/> — registers all public methods and properties
+        /// plus any members decorated with <see cref="CommandAttribute"/>.
+        /// </summary>
+        /// <param name="target">The instance to scan. Must not be <c>null</c>.</param>
+        /// <param name="instanceKey">
+        /// A unique key that namespaces commands for this instance (e.g., <c>"player"</c>).
+        /// Must not be null, empty, or contain a <c>'.'</c> character.
+        /// </param>
+        /// <returns>A <see cref="ScanResult"/> describing the per-command outcomes.</returns>
+        public ScanResult RegisterInstance(object target, string instanceKey)
+        {
+            return RegisterInstance(target, instanceKey, default, InstanceScanMode.Auto);
+        }
+
+        /// <summary>
+        /// Scans an instance target for commands and registers them under the
+        /// <c>instanceKey.commandName</c> naming scheme.
+        /// </summary>
+        /// <param name="target">The instance to scan. Must not be <c>null</c>.</param>
+        /// <param name="instanceKey">
+        /// A unique key that namespaces commands for this instance (e.g., <c>"player"</c>).
+        /// Must not be null, empty, or contain a <c>'.'</c> character.
+        /// </param>
+        /// <param name="options">
+        /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
+        /// <see cref="CommandAttribute"/> members decorated with <c>IsDevOnly = true</c> are skipped.
+        /// </param>
+        /// <param name="mode">
+        /// Controls which members are auto-discovered.
+        /// <see cref="InstanceScanMode.Auto"/> registers public methods and properties.
+        /// <see cref="InstanceScanMode.AttributeOnly"/> registers only <see cref="CommandAttribute"/>-decorated members.
+        /// </param>
+        /// <returns>A <see cref="ScanResult"/> describing the per-command outcomes.</returns>
+        public ScanResult RegisterInstance(
+            object target,
+            string instanceKey,
+            ScanOptions options,
+            InstanceScanMode mode = InstanceScanMode.Auto)
+        {
+            if (!IsInitialized)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NotInitialized,
+                    "CommandSystem has not been initialized. Call Initialize() first.");
+            }
+
+            if (target == null)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.NullTarget,
+                    "Target instance must not be null.");
+            }
+
+            if (string.IsNullOrEmpty(instanceKey))
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.InvalidInstanceKey,
+                    "Instance key must not be null or empty.");
+            }
+
+            if (instanceKey.IndexOf('.') >= 0)
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.InvalidInstanceKey,
+                    "Instance key must not contain a '.' character.");
+            }
+
+            if (!_instanceRegistry.TryReserveKey(instanceKey, target))
+            {
+                return ScanResult.SystemFailure(
+                    RegistrationError.DuplicateInstanceKey,
+                    string.Format("An instance with key '{0}' is already registered.", instanceKey));
+            }
+
+            return _instanceScanner.Scan(target, instanceKey, options, mode);
+        }
+
+        /// <summary>
+        /// Removes all commands registered under the given instance key and releases the
+        /// associated instance reference.
+        /// Typically called from <c>OnDestroy</c> (Unity) or equivalent cleanup code.
+        /// </summary>
+        /// <param name="instanceKey">
+        /// The key used when the instance was registered via <see cref="RegisterInstance(object,string)"/>.
+        /// </param>
+        /// <returns>
+        /// An <see cref="UnregisterResult"/> indicating success and the number of commands removed,
+        /// or a failure with an error message.
+        /// </returns>
+        public UnregisterResult UnregisterInstance(string instanceKey)
+        {
+            if (!IsInitialized)
+            {
+                return UnregisterResult.Fail("CommandSystem has not been initialized.");
+            }
+
+            if (string.IsNullOrEmpty(instanceKey))
+            {
+                return UnregisterResult.Fail("Instance key must not be null or empty.");
+            }
+
+            if (!_instanceRegistry.TryGetCommandNames(instanceKey, out System.Collections.Generic.List<string> names))
+            {
+                return UnregisterResult.Fail(
+                    string.Format("No instance registered with key '{0}'.", instanceKey));
+            }
+
+            for (int i = 0; i < names.Count; i++)
+            {
+                _registry.TryRemove(names[i]);
+            }
+
+            int removedCount = names.Count;
+            _instanceRegistry.RemoveKey(instanceKey);
+
+            return UnregisterResult.Ok(removedCount);
         }
 
         /// <summary>

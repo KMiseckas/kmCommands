@@ -4,6 +4,7 @@
 // See LICENSE file in the project root for full license information.
 
 using System;
+using System.Reflection;
 
 namespace kmCommands.Core
 {
@@ -48,9 +49,9 @@ namespace kmCommands.Core
                     null);
             }
 
-            int totalCount    = definition.Parameters.Length;
+            int totalCount = definition.Parameters.Length;
             int requiredCount = definition.RequiredParameterCount;
-            int actualCount   = args != null ? args.Length : 0;
+            int actualCount = args != null ? args.Length : 0;
 
             if (actualCount < requiredCount || actualCount > totalCount)
             {
@@ -98,6 +99,38 @@ namespace kmCommands.Core
             {
                 object returnValue = definition.Callback(convertedArgs);
                 return ExecutionResult.Ok(returnValue);
+            }
+            catch (TargetInvocationException ex)
+                when (definition.IsInstanceCommand && ex.InnerException is NullReferenceException)
+            {
+                return ExecutionResult.Fail(
+                    ExecutionError.InstanceNull,
+                    string.Format(
+                        "Command '{0}' failed: the bound instance is null or destroyed.",
+                        commandName),
+                    ex.InnerException);
+            }
+            catch (NullReferenceException ex)
+                when (definition.IsInstanceCommand)
+            {
+                // Direct invocations (non-DynamicInvoke fast paths) throw NullReferenceException
+                // without the TargetInvocationException wrapper. Treat as InstanceNull.
+                return ExecutionResult.Fail(
+                    ExecutionError.InstanceNull,
+                    string.Format(
+                        "Command '{0}' failed: the bound instance is null or destroyed.",
+                        commandName),
+                    ex);
+            }
+            catch (TargetInvocationException ex)
+            {
+                return ExecutionResult.Fail(
+                    ExecutionError.CallbackThrewException,
+                    string.Format(
+                        "Command '{0}' callback threw an exception: {1}",
+                        commandName,
+                        ex.InnerException != null ? ex.InnerException.Message : ex.Message),
+                    ex.InnerException ?? ex);
             }
             catch (Exception ex)
             {
