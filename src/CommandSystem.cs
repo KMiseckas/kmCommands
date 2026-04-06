@@ -599,9 +599,14 @@ namespace kmCommands
         /// <summary>
         /// Scans an instance target for commands and registers them under the
         /// <c>instanceKey.commandName</c> naming scheme.
-        /// Uses <see cref="InstanceScanMode.Auto"/> — registers all public methods and properties
-        /// plus any members decorated with <see cref="CommandAttribute"/>.
         /// </summary>
+        /// <remarks>
+        /// If the target type is decorated with <see cref="InstanceCommandSourceAttribute"/>,
+        /// its <see cref="InstanceCommandSourceAttribute.DefaultScanMode"/> is used as the scan
+        /// mode. Otherwise <see cref="InstanceScanMode.Auto"/> is used.
+        /// To override the scan mode explicitly, use
+        /// <see cref="RegisterInstance(object, string, ScanOptions, InstanceScanMode)"/>.
+        /// </remarks>
         /// <param name="target">The instance to scan. Must not be <c>null</c>.</param>
         /// <param name="instanceKey">
         /// A unique key that namespaces commands for this instance (e.g., <c>"player"</c>).
@@ -610,7 +615,19 @@ namespace kmCommands
         /// <returns>A <see cref="ScanResult"/> describing the per-command outcomes.</returns>
         public ScanResult RegisterInstance(object target, string instanceKey)
         {
-            return RegisterInstance(target, instanceKey, default, InstanceScanMode.Auto);
+            InstanceScanMode mode = InstanceScanMode.Auto;
+
+            if (target != null)
+            {
+                InstanceCommandSourceAttribute sourceAttr =
+                    target.GetType().GetCustomAttribute<InstanceCommandSourceAttribute>();
+                if (sourceAttr != null)
+                {
+                    mode = sourceAttr.DefaultScanMode;
+                }
+            }
+
+            return RegisterInstance(target, instanceKey, default, mode);
         }
 
         /// <summary>
@@ -624,12 +641,14 @@ namespace kmCommands
         /// </param>
         /// <param name="options">
         /// Scan configuration. When <see cref="ScanOptions.DevMode"/> is <c>false</c> (default),
-        /// <see cref="CommandAttribute"/> members decorated with <c>IsDevOnly = true</c> are skipped.
+        /// members decorated with <c>IsDevOnly = true</c> via <see cref="InstanceCommandAttribute"/>
+        /// or <see cref="CommandAttribute"/> are skipped.
         /// </param>
         /// <param name="mode">
         /// Controls which members are auto-discovered.
-        /// <see cref="InstanceScanMode.Auto"/> registers public methods and properties.
-        /// <see cref="InstanceScanMode.AttributeOnly"/> registers only <see cref="CommandAttribute"/>-decorated members.
+        /// <see cref="InstanceScanMode.Auto"/> registers public methods and properties plus
+        /// <see cref="InstanceCommandAttribute"/>- or <see cref="CommandAttribute"/>-decorated members.
+        /// <see cref="InstanceScanMode.AttributeOnly"/> registers only attribute-decorated members.
         /// </param>
         /// <returns>A <see cref="ScanResult"/> describing the per-command outcomes.</returns>
         public ScanResult RegisterInstance(

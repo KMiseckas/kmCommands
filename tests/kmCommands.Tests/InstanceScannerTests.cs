@@ -136,6 +136,58 @@ namespace kmCommands.Tests
             public int Normal { get; set; }
         }
 
+        // ── Target classes for InstanceCommandAttribute ───────────────────────────
+
+        private class InstanceCmdTarget
+        {
+            public bool WasCalled;
+            public int LastValue;
+
+            [InstanceCommand("ic_private")]
+            private void PrivateCmd() { WasCalled = true; }
+
+            [InstanceCommand("ic_named")]
+            public void NamedCmd(int value) { LastValue = value; }
+
+            [InstanceCommand]
+            public void MethodNameCmd() { WasCalled = true; }
+
+            [InstanceCommand(IsDevOnly = true)]
+            public void DevOnlyCmd() { WasCalled = true; }
+
+            [InstanceCommand("ic_devonly_named", IsDevOnly = true)]
+            private void DevOnlyNamedCmd() { WasCalled = true; }
+
+            [InstanceCommand("ic_with_desc", Description = "Does something")]
+            public void WithDescCmd() { }
+
+            [InstanceCommand("ic_nonstatic")]
+            public static void StaticWithInstanceAttr() { }
+
+            public void NormalPublic() { }
+        }
+
+        private class InstanceCmdAttributeOnlyTarget
+        {
+            [InstanceCommand("ic_attr_only_cmd")]
+            public void AttributeDecoratedMethod() { }
+            public void ShouldBeSkipped() { }
+        }
+
+        [InstanceCommandSource(DefaultScanMode = InstanceScanMode.AttributeOnly)]
+        private class SourceAttributeOnly
+        {
+            [InstanceCommand("src_cmd")]
+            public void AttributeCmd() { }
+            public void PublicIgnored() { }
+        }
+
+        [InstanceCommandSource(DefaultScanMode = InstanceScanMode.Auto)]
+        private class SourceAttributeAuto
+        {
+            public void AutoCmd() { }
+        }
+
         // ── [Command]-decorated instance methods ──────────────────────────────────
 
         [Test]
@@ -478,6 +530,175 @@ namespace kmCommands.Tests
 
             Assert.That(_registry.TryGetCommand("obj.static_cmd", out _), Is.False);
             Assert.That(_registry.TryGetCommand("obj.NormalMethod", out _), Is.True);
+        }
+
+        // ── [InstanceCommand]-decorated methods ───────────────────────────────────
+
+        [Test]
+        public void InstanceCommand_PrivateMethod_Registered()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.ic_private", out _), Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_PrivateMethod_Callback_Executes()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            _registry.TryGetCommand("ic.ic_private", out CommandDefinition def);
+            def.Callback(Array.Empty<object>());
+            Assert.That(target.WasCalled, Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_ExplicitName_UsesAttributeName()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.ic_named", out _), Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_NoName_UsesMethodName()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            // [InstanceCommand] with no name → method name "MethodNameCmd" is used
+            Assert.That(_registry.TryGetCommand("ic.MethodNameCmd", out _), Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_DevOnly_SkippedWhenDevModeOff()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.DevOnlyCmd", out _), Is.False);
+        }
+
+        [Test]
+        public void InstanceCommand_DevOnly_RegisteredWhenDevModeOn()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.DevOnlyCmd", out _), Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_DevOnlyNamed_SkippedWhenDevModeOff()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", new ScanOptions { DevMode = false }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.ic_devonly_named", out _), Is.False);
+        }
+
+        [Test]
+        public void InstanceCommand_DevOnlyNamed_RegisteredWhenDevModeOn()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", new ScanOptions { DevMode = true }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.ic_devonly_named", out _), Is.True);
+        }
+
+        [Test]
+        public void InstanceCommand_WithDescription_DescriptionStoredOnDefinition()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            _registry.TryGetCommand("ic.ic_with_desc", out CommandDefinition def);
+            Assert.That(def.Description, Is.EqualTo("Does something"));
+        }
+
+        [Test]
+        public void InstanceCommand_StaticMethod_NotRegisteredByInstanceScanner()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("ic.ic_nonstatic", out _), Is.False);
+        }
+
+        [Test]
+        public void InstanceCommand_PublicMethod_NotDoubleRegisteredByAutoScan()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            ScanResult result = _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            int count = 0;
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (result.Entries[i].CommandName == "ic.ic_named")
+                    count++;
+            }
+            Assert.That(count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InstanceCommand_AttributeOnlyMode_RegistersAttributeDecoratedOnly()
+        {
+            var target = new InstanceCmdAttributeOnlyTarget();
+            ReserveKey("ao", target);
+            _scanner.Scan(target, "ao", default, InstanceScanMode.AttributeOnly);
+
+            Assert.That(_registry.TryGetCommand("ao.ic_attr_only_cmd", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("ao.ShouldBeSkipped", out _), Is.False);
+        }
+
+        [Test]
+        public void InstanceCommand_HasIsInstanceCommandTrue()
+        {
+            var target = new InstanceCmdTarget();
+            ReserveKey("ic", target);
+            _scanner.Scan(target, "ic", default, InstanceScanMode.Auto);
+
+            _registry.TryGetCommand("ic.ic_private", out CommandDefinition def);
+            Assert.That(def.IsInstanceCommand, Is.True);
+        }
+
+        // ── [InstanceCommandSource] class-level attribute ─────────────────────────
+
+        [Test]
+        public void InstanceCommandSource_AttributeOnly_SuppressesAutoScanViaSimpleOverload()
+        {
+            var target = new SourceAttributeOnly();
+            ReserveKey("src", target);
+            // Simulate what CommandSystem.RegisterInstance(target, key) does:
+            // The class has [InstanceCommandSource(DefaultScanMode = AttributeOnly)].
+            _scanner.Scan(target, "src", default, InstanceScanMode.AttributeOnly);
+
+            Assert.That(_registry.TryGetCommand("src.src_cmd", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("src.PublicIgnored", out _), Is.False);
+        }
+
+        [Test]
+        public void InstanceCommandSource_Auto_AutoScansPublicMethods()
+        {
+            var target = new SourceAttributeAuto();
+            ReserveKey("src", target);
+            _scanner.Scan(target, "src", default, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("src.AutoCmd", out _), Is.True);
         }
     }
 }

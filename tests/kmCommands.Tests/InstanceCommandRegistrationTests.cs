@@ -97,6 +97,27 @@ namespace kmCommands.Tests
             public int Double(int x) { return x * 2; }
         }
 
+        [InstanceCommandSource(DefaultScanMode = InstanceScanMode.AttributeOnly)]
+        private class SourceAttributeOnlyTarget
+        {
+            [InstanceCommand("ic_explicit")]
+            public void ExplicitCmd() { }
+            public void ShouldBeSkipped() { }
+        }
+
+        [InstanceCommandSource(DefaultScanMode = InstanceScanMode.Auto)]
+        private class SourceAutoTarget
+        {
+            public void AutoCmd() { }
+        }
+
+        private class InstanceCmdDevOnlyTarget
+        {
+            [InstanceCommand("ic_dev", IsDevOnly = true)]
+            public void DevOnlyMethod() { }
+            public void RegularMethod() { }
+        }
+
         // ── Guard: not initialized ────────────────────────────────────────────────
 
         [Test]
@@ -556,6 +577,67 @@ namespace kmCommands.Tests
                 }
             }
             Assert.That(hasEntry, Is.True);
+        }
+
+        // ── [InstanceCommandSource] class attribute integration ───────────────────
+
+        [Test]
+        public void RegisterInstance_SourceAttribute_AttributeOnly_SuppressesAutoScan()
+        {
+            var target = new SourceAttributeOnlyTarget();
+            ScanResult result = _system.RegisterInstance(target, "src");
+
+            Assert.That(result.HasErrors, Is.False);
+            bool found = _system.TryGetCommandParameters("src.ic_explicit", out _);
+            Assert.That(found, Is.True);
+
+            bool skipped = _system.TryGetCommandParameters("src.ShouldBeSkipped", out _);
+            Assert.That(skipped, Is.False);
+        }
+
+        [Test]
+        public void RegisterInstance_SourceAttribute_Auto_AutoScansPublicMethods()
+        {
+            var target = new SourceAutoTarget();
+            ScanResult result = _system.RegisterInstance(target, "src");
+
+            Assert.That(result.HasErrors, Is.False);
+            bool found = _system.TryGetCommandParameters("src.AutoCmd", out _);
+            Assert.That(found, Is.True);
+        }
+
+        [Test]
+        public void RegisterInstance_SourceAttribute_ExplicitModeOverridesClassAttribute()
+        {
+            var target = new SourceAttributeOnlyTarget();
+            // Pass InstanceScanMode.Auto explicitly — class attribute's AttributeOnly is ignored.
+            ScanResult result = _system.RegisterInstance(
+                target, "src", default, InstanceScanMode.Auto);
+
+            bool found = _system.TryGetCommandParameters("src.ShouldBeSkipped", out _);
+            Assert.That(found, Is.True);
+        }
+
+        // ── [InstanceCommand] dev-only via CommandSystem ──────────────────────────
+
+        [Test]
+        public void RegisterInstance_InstanceCommandDevOnly_SkippedWhenDevModeOff()
+        {
+            var target = new InstanceCmdDevOnlyTarget();
+            _system.RegisterInstance(target, "ic", new ScanOptions { DevMode = false });
+
+            bool found = _system.TryGetCommandParameters("ic.ic_dev", out _);
+            Assert.That(found, Is.False);
+        }
+
+        [Test]
+        public void RegisterInstance_InstanceCommandDevOnly_RegisteredWhenDevModeOn()
+        {
+            var target = new InstanceCmdDevOnlyTarget();
+            _system.RegisterInstance(target, "ic", new ScanOptions { DevMode = true });
+
+            bool found = _system.TryGetCommandParameters("ic.ic_dev", out _);
+            Assert.That(found, Is.True);
         }
     }
 }

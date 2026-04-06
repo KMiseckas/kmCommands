@@ -54,7 +54,7 @@ namespace kmCommands.Core
             return new ScanResult(entries.ToArray());
         }
 
-        // ── Step 1: [Command]-decorated instance methods ─────────────────────────
+        // ── Step 1: [InstanceCommand]- or [Command]-decorated instance methods ───
 
         private void ScanAttributeDecoratedMethods(
             object target,
@@ -71,20 +71,43 @@ namespace kmCommands.Core
             for (int i = 0; i < methods.Length; i++)
             {
                 MethodInfo method = methods[i];
-                CommandAttribute attr = method.GetCustomAttribute<CommandAttribute>();
-                if (attr == null) continue;
+
+                // [InstanceCommand] takes precedence; fall back to [Command] for compatibility.
+                InstanceCommandAttribute instanceAttr =
+                    method.GetCustomAttribute<InstanceCommandAttribute>();
+                CommandAttribute commandAttr =
+                    instanceAttr == null ? method.GetCustomAttribute<CommandAttribute>() : null;
+
+                if (instanceAttr == null && commandAttr == null) continue;
 
                 // Skip static methods — they belong to static scan, not instance scan.
                 if (method.IsStatic) continue;
 
-                // Dev-only filter.
-                if (attr.IsDevOnly && !options.DevMode) continue;
+                // Resolve effective name, dev-only flag, and description.
+                bool isDevOnly;
+                string commandName;
+                string description;
 
-                string commandName = attr.Name;
+                if (instanceAttr != null)
+                {
+                    isDevOnly    = instanceAttr.IsDevOnly;
+                    commandName  = instanceAttr.Name ?? method.Name;
+                    description  = instanceAttr.Description;
+                }
+                else
+                {
+                    isDevOnly    = commandAttr.IsDevOnly;
+                    commandName  = commandAttr.Name;
+                    description  = commandAttr.Description;
+                }
+
+                // Dev-only filter.
+                if (isDevOnly && !options.DevMode) continue;
+
                 string fullName = string.Format("{0}.{1}", instanceKey, commandName);
 
                 ScanEntry? entry = ValidateAndRegisterMethod(
-                    target, method, fullName, attr.Description);
+                    target, method, fullName, description);
 
                 if (entry.HasValue)
                 {
@@ -112,7 +135,8 @@ namespace kmCommands.Core
                 if (method.IsSpecialName) continue;
                 if (method.IsAbstract) continue;
 
-                // Skip [Command]-decorated methods — already handled in Step 1.
+                // Skip [InstanceCommand]- or [Command]-decorated methods — already handled in Step 1.
+                if (method.GetCustomAttribute<InstanceCommandAttribute>() != null) continue;
                 if (method.GetCustomAttribute<CommandAttribute>() != null) continue;
 
                 // Generic methods cannot be registered — produce a descriptive failed entry.
