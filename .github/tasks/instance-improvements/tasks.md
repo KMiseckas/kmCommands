@@ -202,6 +202,7 @@ Add an initialization-time `devMode` parameter to all `Initialize()` overloads. 
 1. Add `private bool _devMode;` field to `CommandSystem`.
 
 2. Add `private ScanOptions ResolveEffectiveOptions(ScanOptions callerOptions)` helper:
+
    ```
    if (_devMode && !callerOptions.DevMode) callerOptions.DevMode = true;
    return callerOptions;
@@ -509,36 +510,36 @@ Complete the remaining documentation items from requirements R10 that were not a
   - [ ] Key design components are mapped to tasks
   - [ ] Critical design constraints are represented in validation gates
 
-| Requirement | Task(s) |
-|-------------|---------|
-| R1 — Auto-scanned members skipped when DevMode off | Task 1 |
-| R2 — `[Command]` without `IsDevOnly` always registers | Task 1 |
-| R3 — `[CommandIgnore]` attribute causes skip in all modes | Task 1 |
-| R4 — `[CommandHost]` attribute + `ScanCommandHosts()` | Task 4 |
-| R5 — Pre-scanned types skip `GetMethods`/`GetProperties` | Task 4 |
-| R6 — `ScanOptions.ScanUpTo` inheritance-chain walk | Task 2 |
-| R7 — `ScanUpTo = null` preserves DeclaredOnly behavior | Task 2 |
-| R8 — `Initialize()` overloads accept `devMode` parameter | Task 3 |
-| R9 — System-wide DevMode applied via OR semantic | Task 3 |
+| Requirement                                                      | Task(s)                                     |
+| ---------------------------------------------------------------- | ------------------------------------------- |
+| R1 — Auto-scanned members skipped when DevMode off               | Task 1                                      |
+| R2 — `[Command]` without `IsDevOnly` always registers            | Task 1                                      |
+| R3 — `[CommandIgnore]` attribute causes skip in all modes        | Task 1                                      |
+| R4 — `[CommandHost]` attribute + `ScanCommandHosts()`            | Task 4                                      |
+| R5 — Pre-scanned types skip `GetMethods`/`GetProperties`         | Task 4                                      |
+| R6 — `ScanOptions.ScanUpTo` inheritance-chain walk               | Task 2                                      |
+| R7 — `ScanUpTo = null` preserves DeclaredOnly behavior           | Task 2                                      |
+| R8 — `Initialize()` overloads accept `devMode` parameter         | Task 3                                      |
+| R9 — System-wide DevMode applied via OR semantic                 | Task 3                                      |
 | R10 — `docs/commands.md` and `docs/unity-integration.md` updated | Tasks 1, 2, 3 (partial); Task 6 (remainder) |
-| R11 — Integration tests cover 4-arg `RegisterInstance` | Task 5 |
+| R11 — Integration tests cover 4-arg `RegisterInstance`           | Task 5                                      |
 
-| Design Component | Task(s) |
-|-----------------|---------|
-| `CommandIgnoreAttribute` | Task 1 |
-| `InstanceScanner` DevMode filter on auto-scan paths | Task 1 |
-| `ScanOptions.ScanUpTo` + `GetScanTypes` helper | Task 2 |
-| `InstanceScanner.Scan` hierarchy loop | Task 2 |
-| `CommandSystem._devMode` + `ResolveEffectiveOptions` | Task 3 |
-| All `Initialize()` overloads updated | Task 3 |
-| `CommandHostAttribute` | Task 4 |
-| `TypeCommandProfile` + `TypeCommandProfileCache` | Task 4 |
-| `InstanceScanner.BuildProfile` | Task 4 |
-| `InstanceScanner.ScanFromProfile` | Task 4 |
-| `CommandSystem.ScanCommandHosts()` overloads | Task 4 |
-| `RegisterInstance` cache-check integration | Task 4 |
-| Integration tests for 4-arg `RegisterInstance` | Task 5 |
-| Remaining docs (DynamicInvoke, lifecycle, property naming) | Task 6 |
+| Design Component                                           | Task(s) |
+| ---------------------------------------------------------- | ------- |
+| `CommandIgnoreAttribute`                                   | Task 1  |
+| `InstanceScanner` DevMode filter on auto-scan paths        | Task 1  |
+| `ScanOptions.ScanUpTo` + `GetScanTypes` helper             | Task 2  |
+| `InstanceScanner.Scan` hierarchy loop                      | Task 2  |
+| `CommandSystem._devMode` + `ResolveEffectiveOptions`       | Task 3  |
+| All `Initialize()` overloads updated                       | Task 3  |
+| `CommandHostAttribute`                                     | Task 4  |
+| `TypeCommandProfile` + `TypeCommandProfileCache`           | Task 4  |
+| `InstanceScanner.BuildProfile`                             | Task 4  |
+| `InstanceScanner.ScanFromProfile`                          | Task 4  |
+| `CommandSystem.ScanCommandHosts()` overloads               | Task 4  |
+| `RegisterInstance` cache-check integration                 | Task 4  |
+| Integration tests for 4-arg `RegisterInstance`             | Task 5  |
+| Remaining docs (DynamicInvoke, lifecycle, property naming) | Task 6  |
 
 - Gaps or follow-ups:
   - Design §6 documents items across Tasks 1, 2, 3, and 6 — no gap; each doc item is anchored to the task that introduces the corresponding feature.
