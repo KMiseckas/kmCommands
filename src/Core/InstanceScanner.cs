@@ -38,20 +38,49 @@ namespace kmCommands.Core
             ScanOptions options,
             InstanceScanMode mode)
         {
-            Type type = target.GetType();
+            Type[] scanTypes = GetScanTypes(target.GetType(), options.ScanUpTo);
             List<ScanEntry> entries = new List<ScanEntry>();
 
-            // Step 1: [Command]-decorated instance methods (all access levels, DeclaredOnly).
-            ScanAttributeDecoratedMethods(target, type, instanceKey, options, entries);
-
-            // Step 2: Auto-scan public declared instance members (only in Auto mode).
-            if (mode == InstanceScanMode.Auto)
+            for (int t = 0; t < scanTypes.Length; t++)
             {
-                ScanPublicMethods(target, type, instanceKey, options, entries);
-                ScanPublicProperties(target, type, instanceKey, options, entries);
+                Type type = scanTypes[t];
+
+                // Step 1: [Command]-decorated instance methods (all access levels, DeclaredOnly).
+                ScanAttributeDecoratedMethods(target, type, instanceKey, options, entries);
+
+                // Step 2: Auto-scan public declared instance members (only in Auto mode).
+                if (mode == InstanceScanMode.Auto)
+                {
+                    ScanPublicMethods(target, type, instanceKey, options, entries);
+                    ScanPublicProperties(target, type, instanceKey, options, entries);
+                }
             }
 
             return new ScanResult(entries.ToArray());
+        }
+
+        /// <summary>
+        /// Returns the ordered list of types to scan for members.
+        /// When <paramref name="scanUpTo"/> is null, returns only <paramref name="concreteType"/>.
+        /// Otherwise walks from <paramref name="concreteType"/> up the inheritance chain, stopping
+        /// before <paramref name="scanUpTo"/> (exclusive) and before <see cref="object"/>.
+        /// </summary>
+        private static Type[] GetScanTypes(Type concreteType, Type scanUpTo)
+        {
+            if (scanUpTo == null)
+            {
+                return new[] { concreteType };
+            }
+
+            List<Type> types = new List<Type>();
+            Type current = concreteType;
+            while (current != null && current != scanUpTo && current != typeof(object))
+            {
+                types.Add(current);
+                current = current.BaseType;
+            }
+
+            return types.ToArray();
         }
 
         // ── Step 1: [Command]-decorated instance methods ─────────────────────────

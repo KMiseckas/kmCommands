@@ -572,5 +572,92 @@ namespace kmCommands.Tests
             Assert.That(_registry.TryGetCommand("obj.set_IgnoredProp", out _), Is.False);
             Assert.That(_registry.TryGetCommand("obj.get_VisibleProp", out _), Is.True);
         }
+
+        // ── ScanOptions.ScanUpTo ─────────────────────────────────────────────────
+
+        private class BaseClass
+        {
+            public void BaseMethod() { }
+            public int BaseProperty { get; set; }
+        }
+
+        private class DerivedClass : BaseClass
+        {
+            public void DerivedMethod() { }
+            public int DerivedProperty { get; set; }
+        }
+
+        private class GrandChildClass : DerivedClass
+        {
+            public void GrandChildMethod() { }
+        }
+
+        private class BoundaryClass : DerivedClass { }
+
+        [Test]
+        public void ScanUpTo_Null_DiscoversDeclaredMembersOnly()
+        {
+            var target = new DerivedClass();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true, ScanUpTo = null }, InstanceScanMode.Auto);
+
+            // Own members present
+            Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("obj.get_DerivedProperty", out _), Is.True);
+            // Base class members absent (DeclaredOnly)
+            Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.get_BaseProperty", out _), Is.False);
+        }
+
+        [Test]
+        public void ScanUpTo_Set_IncludesIntermediateBaseMembers()
+        {
+            var target = new DerivedClass();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true, ScanUpTo = typeof(BaseClass) }, InstanceScanMode.Auto);
+
+            // DerivedClass own members present
+            Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.True);
+            // BaseClass members absent (excluded by ScanUpTo boundary)
+            Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
+        }
+
+        [Test]
+        public void ScanUpTo_Boundary_MembersExcluded()
+        {
+            // The boundary type's own members must not appear.
+            var target = new BoundaryClass();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true, ScanUpTo = typeof(DerivedClass) }, InstanceScanMode.Auto);
+
+            // BoundaryClass has no extra members; DerivedClass members are excluded
+            Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
+        }
+
+        [Test]
+        public void ScanUpTo_DeepHierarchy_AllLevelsBeforeBoundaryScanned()
+        {
+            var target = new GrandChildClass();
+            ReserveKey("obj", target);
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = true, ScanUpTo = typeof(BaseClass) }, InstanceScanMode.Auto);
+
+            // GrandChildClass and DerivedClass scanned; BaseClass excluded
+            Assert.That(_registry.TryGetCommand("obj.GrandChildMethod", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.True);
+            Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
+        }
+
+        [Test]
+        public void ScanUpTo_DevModeOff_InheritedAutoScanMembersStillSkipped()
+        {
+            var target = new DerivedClass();
+            ReserveKey("obj", target);
+            // ScanUpTo is set but DevMode=false — auto-scan members are implicitly dev-only
+            _scanner.Scan(target, "obj", new ScanOptions { DevMode = false, ScanUpTo = typeof(BaseClass) }, InstanceScanMode.Auto);
+
+            Assert.That(_registry.TryGetCommand("obj.DerivedMethod", out _), Is.False);
+            Assert.That(_registry.TryGetCommand("obj.BaseMethod", out _), Is.False);
+        }
     }
 }

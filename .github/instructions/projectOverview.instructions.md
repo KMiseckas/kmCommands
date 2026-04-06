@@ -32,7 +32,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/`: core library source.
 - `src/CommandAttribute.cs`: public `[Command]` attribute for attribute-based registration.
 - `src/CommandIgnoreAttribute.cs`: public `[CommandIgnore]` attribute — prevents a method or property from being registered in any scan mode; overrides `[Command]` when both are present.
-- `src/ScanOptions.cs`: public `ScanOptions` struct controlling dev-mode filtering.
+- `src/ScanOptions.cs`: public `ScanOptions` struct — `DevMode` bool; `ScanUpTo` Type (null = DeclaredOnly, non-null = walk hierarchy up to but not including the boundary type).
 - `src/TypeConverterDelegate.cs`: public `TypeConverterDelegate` delegate for custom converter registration.
 - `src/InstanceScanMode.cs`: public `InstanceScanMode` enum — `Auto` (default) / `AttributeOnly`.
 - `src/CommandMetadataSnapshot.cs`: public `CommandMetadataSnapshot` sealed class — immutable point-in-time registry snapshot.

@@ -728,6 +728,27 @@ ScanResult result = system.RegisterInstance(
 | `Auto` (default) | Registers all public instance methods and properties, plus any `[Command]`-decorated private/internal methods.  |
 | `AttributeOnly`  | Registers only members explicitly decorated with `[Command]`. Public members without the attribute are skipped. |
 
+### `ScanOptions.ScanUpTo` — Inheritance-Chain Boundary
+
+By default, `RegisterInstance` only discovers members declared directly on the target type (`DeclaredOnly`). Set `ScanOptions.ScanUpTo` to scan up the inheritance chain, stopping before the specified boundary type (exclusive):
+
+```csharp
+// Scan PlayerController and all user-defined base classes,
+// stopping before MonoBehaviour (whose members are never included).
+ScanResult result = system.RegisterInstance(
+    target,
+    "player",
+    new ScanOptions { DevMode = isDevBuild, ScanUpTo = typeof(MonoBehaviour) });
+```
+
+`ScanUpTo` rules:
+
+- When `null` (default), only the concrete type's own members are scanned.
+- The boundary type itself is **not** included — scanning stops before reaching it.
+- `object` is always excluded, regardless of `ScanUpTo`.
+- If `ScanUpTo` is not in the target's hierarchy, scanning walks all the way up to `object` (safe — no members of `object` are registered).
+- `ScanOptions.DevMode` still applies at every level: auto-scanned members from base classes require DevMode on, just like top-level members.
+
 ### Auto-Discovered Members
 
 In `Auto` mode, the scanner registers:
