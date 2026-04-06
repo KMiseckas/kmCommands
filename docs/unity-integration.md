@@ -254,3 +254,78 @@ public void SubmitRaw(string rawInput)
     _commands.Execute(commandName, args);
 }
 ```
+
+---
+
+## Instance Commands (MonoBehaviour Lifecycle)
+
+Use `RegisterInstance` to bind a MonoBehaviour's public methods and properties as commands at runtime. Call `UnregisterInstance` in `OnDestroy` so commands are removed when the object is destroyed.
+
+```csharp
+using kmCommands;
+using UnityEngine;
+
+public class PlayerController : MonoBehaviour
+{
+    // _commands is typically a shared singleton or injected reference
+    private CommandSystem _commands;
+
+    public int Health { get; private set; } = 100;
+
+    private void Start()
+    {
+        // Auto-discovers: Heal(), get_Health, and any [Command]-decorated members
+        ScanResult result = _commands.RegisterInstance(this, "player");
+
+        if (result.HasErrors)
+        {
+            for (int i = 0; i < result.Entries.Length; i++)
+            {
+                if (!result.Entries[i].Result.Success)
+                    Debug.LogWarning(string.Format("[kmCommands] {0}: {1}",
+                        result.Entries[i].CommandName, result.Entries[i].Result.ErrorMessage));
+            }
+        }
+    }
+
+    private void OnDestroy()
+    {
+        _commands.UnregisterInstance("player");
+    }
+
+    public void Heal(int amount)
+    {
+        Health = Mathf.Clamp(Health + amount, 0, 100);
+    }
+}
+```
+
+After `Start()`, the following commands are available:
+
+- `player.Heal` — executes `Heal(int amount)`
+- `player.get_Health` — returns the current `Health` value
+
+After `OnDestroy()`, all `player.*` commands are removed from the registry.
+
+### Handling `ExecutionError.InstanceNull`
+
+If a command is executed after the bound instance is destroyed (or before `UnregisterInstance` is called in a cleanup edge case), the system returns `ExecutionError.InstanceNull`:
+
+```csharp
+ExecutionResult result = _commands.Execute("player.Heal", new[] { "10" });
+if (result.Error == ExecutionError.InstanceNull)
+{
+    Debug.LogWarning("[kmCommands] Player instance was destroyed. Cleaning up...");
+    _commands.UnregisterInstance("player");
+}
+```
+
+### Attribute-Only Mode
+
+Use `InstanceScanMode.AttributeOnly` when you do not want all public methods exposed — only those explicitly decorated with `[Command]`:
+
+```csharp
+_commands.RegisterInstance(this, "player", default, InstanceScanMode.AttributeOnly);
+```
+
+With `AttributeOnly`, only methods and properties decorated with `[Command]` are registered. Public methods without the attribute are ignored.

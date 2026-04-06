@@ -17,12 +17,20 @@ namespace kmCommands.Core
         internal int RequiredParameterCount { get; }
         internal string Description { get; }
 
-        internal CommandDefinition(string name, CommandParameterInfo[] parameters, CommandCallback callback, string description)
+        /// <summary>
+        /// <c>true</c> for commands registered via <c>RegisterInstance</c>; <c>false</c> for
+        /// statically-registered and manually-registered commands.
+        /// </summary>
+        internal bool IsInstanceCommand { get; }
+
+        internal CommandDefinition(string name, CommandParameterInfo[] parameters, CommandCallback callback,
+            string description, bool isInstanceCommand = false)
         {
             Name = name;
             Parameters = parameters;
             Callback = callback;
             Description = description;
+            IsInstanceCommand = isInstanceCommand;
 
             int required = 0;
             for (int i = 0; i < parameters.Length; i++)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NUnit.Framework;
 
 namespace kmCommands.Tests
@@ -21,14 +21,14 @@ namespace kmCommands.Tests
             _system.Shutdown();
         }
 
-        // ── helpers ────────────────────────────────────────────────────────
+        // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private RegistrationResult Register(string name, CommandParameterInfo[] parameters, CommandCallback cb)
         {
             return _system.Register(name, parameters, cb);
         }
 
-        // ── AC-1: Required param — IsOptional=false, DefaultValue=null ─────
+        // â”€â”€ AC-1: Required param â€” IsOptional=false, DefaultValue=null â”€â”€â”€â”€â”€
 
         [Test]
         public void RequiredParam_HasIsOptionalFalse_AndNullDefaultValue()
@@ -38,7 +38,7 @@ namespace kmCommands.Tests
             Assert.That(param.DefaultValue, Is.Null);
         }
 
-        // ── AC-2: Optional param — IsOptional=true, correct DefaultValue ───
+        // â”€â”€ AC-2: Optional param â€” IsOptional=true, correct DefaultValue â”€â”€â”€
 
         [Test]
         public void OptionalParam_HasIsOptionalTrue_AndExpectedDefaultValue()
@@ -48,7 +48,7 @@ namespace kmCommands.Tests
             Assert.That(param.DefaultValue, Is.EqualTo(42));
         }
 
-        // ── AC-3: Mismatched default type → ArgumentException ──────────────
+        // â”€â”€ AC-3: Mismatched default type â†’ ArgumentException â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void OptionalParam_TypeMismatch_ThrowsArgumentException()
@@ -57,7 +57,7 @@ namespace kmCommands.Tests
                 new CommandParameterInfo("x", typeof(int), "wrong"));
         }
 
-        // ── AC-4: Null default → ArgumentNullException ─────────────────────
+        // â”€â”€ AC-4: Null default â†’ ArgumentNullException â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void OptionalParam_NullDefault_ThrowsArgumentNullException()
@@ -66,7 +66,7 @@ namespace kmCommands.Tests
                 new CommandParameterInfo("x", typeof(int), (object)null));
         }
 
-        // ── AC-5: All-required registration succeeds (regression) ──────────
+        // â”€â”€ AC-5: All-required registration succeeds (regression) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_AllRequired_Succeeds()
@@ -74,11 +74,11 @@ namespace kmCommands.Tests
             RegistrationResult result = Register(
                 "cmd",
                 new[] { new CommandParameterInfo("a", typeof(int)), new CommandParameterInfo("b", typeof(string)) },
-                _ => { });
+                _ => null);
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-6: Trailing optional params — registration succeeds ─────────
+        // â”€â”€ AC-6: Trailing optional params â€” registration succeeds â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_TrailingOptional_Succeeds()
@@ -90,11 +90,11 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(string), "default")
                 },
-                _ => { });
+                _ => null);
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-7: Optional before required → OptionalParameterBeforeRequired
+        // â”€â”€ AC-7: Optional before required â†’ OptionalParameterBeforeRequired
 
         [Test]
         public void Register_OptionalBeforeRequired_ReturnsError()
@@ -106,12 +106,12 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(string), "default"),
                     new CommandParameterInfo("b", typeof(int))
                 },
-                _ => { });
+                _ => null);
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(RegistrationError.OptionalParameterBeforeRequired));
         }
 
-        // ── AC-8: All-optional registration succeeds ───────────────────────
+        // â”€â”€ AC-8: All-optional registration succeeds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Register_AllOptional_Succeeds()
@@ -123,11 +123,11 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int), 1),
                     new CommandParameterInfo("b", typeof(string), "hi")
                 },
-                _ => { });
+                _ => null);
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-9: Execute with all args (required + optional) succeeds ──────
+        // â”€â”€ AC-9: Execute with all args (required + optional) succeeds â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_AllArguments_Succeeds()
@@ -139,13 +139,13 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(string), "default")
                 },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", new[] { "5", "hello" });
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-10: Execute with only required args succeeds ────────────────
+        // â”€â”€ AC-10: Execute with only required args succeeds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_OnlyRequiredArgs_Succeeds()
@@ -157,13 +157,13 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(string), "default")
                 },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", new[] { "5" });
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-11: Execute omitting subset of trailing optional args succeeds
+        // â”€â”€ AC-11: Execute omitting subset of trailing optional args succeeds
 
         [Test]
         public void Execute_SubsetOfOptionalArgs_Succeeds()
@@ -176,14 +176,14 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("b", typeof(string), "default"),
                     new CommandParameterInfo("c", typeof(bool), true)
                 },
-                _ => { });
+                _ => null);
 
             // Supply required + first optional, omit second optional
             ExecutionResult result = _system.Execute("cmd", new[] { "5", "hello" });
             Assert.That(result.Success, Is.True);
         }
 
-        // ── AC-12: Too few args (below required) → ArgumentCountMismatch ───
+        // â”€â”€ AC-12: Too few args (below required) â†’ ArgumentCountMismatch â”€â”€â”€
 
         [Test]
         public void Execute_TooFewArgs_ReturnsArgumentCountMismatch()
@@ -196,14 +196,14 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("b", typeof(string)),
                     new CommandParameterInfo("c", typeof(bool), true)
                 },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", new[] { "5" });
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(ExecutionError.ArgumentCountMismatch));
         }
 
-        // ── AC-13: Too many args (above total) → ArgumentCountMismatch ─────
+        // â”€â”€ AC-13: Too many args (above total) â†’ ArgumentCountMismatch â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_TooManyArgs_ReturnsArgumentCountMismatch()
@@ -215,14 +215,14 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(string), "default")
                 },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", new[] { "5", "hello", "extra" });
             Assert.That(result.Success, Is.False);
             Assert.That(result.Error, Is.EqualTo(ExecutionError.ArgumentCountMismatch));
         }
 
-        // ── AC-14: Omitted optional — default injected without string conversion
+        // â”€â”€ AC-14: Omitted optional â€” default injected without string conversion
 
         [Test]
         public void Execute_OmittedOptional_InjectsDefaultDirectly()
@@ -236,7 +236,7 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(int), 42)
                 },
-                args => { received = args; });
+                args => { received = args; return null; });
 
             ExecutionResult result = _system.Execute("cmd", new[] { "1" });
 
@@ -246,7 +246,7 @@ namespace kmCommands.Tests
             Assert.That(received[1], Is.InstanceOf<int>());  // not the string "42"
         }
 
-        // ── AC-15: Correct mix of caller values and defaults in callback order
+        // â”€â”€ AC-15: Correct mix of caller values and defaults in callback order
 
         [Test]
         public void Execute_MixedArgs_CallbackReceivesCorrectValues()
@@ -261,7 +261,7 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("msg", typeof(string), "hello"),
                     new CommandParameterInfo("flag", typeof(bool), true)
                 },
-                args => { received = args; });
+                args => { received = args; return null; });
 
             ExecutionResult result = _system.Execute("cmd", new[] { "7" });
 
@@ -272,7 +272,7 @@ namespace kmCommands.Tests
             Assert.That(received[2], Is.EqualTo(true));
         }
 
-        // ── Error message: range format when optional params present ────────
+        // â”€â”€ Error message: range format when optional params present â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_TooFewArgs_ErrorMessageShowsRange()
@@ -284,7 +284,7 @@ namespace kmCommands.Tests
                     new CommandParameterInfo("a", typeof(int)),
                     new CommandParameterInfo("b", typeof(string), "default")
                 },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", Array.Empty<string>());
 
@@ -293,7 +293,7 @@ namespace kmCommands.Tests
             Assert.That(result.ErrorMessage, Does.Contain("between 1 and 2"));
         }
 
-        // ── Error message: unchanged format when all-required ───────────────
+        // â”€â”€ Error message: unchanged format when all-required â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]
         public void Execute_TooFewArgs_AllRequired_ErrorMessageUnchanged()
@@ -301,7 +301,7 @@ namespace kmCommands.Tests
             Register(
                 "cmd",
                 new[] { new CommandParameterInfo("a", typeof(int)), new CommandParameterInfo("b", typeof(string)) },
-                _ => { });
+                _ => null);
 
             ExecutionResult result = _system.Execute("cmd", new[] { "5" });
 

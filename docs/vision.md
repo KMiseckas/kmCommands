@@ -187,21 +187,21 @@ Register additional names that route to the same command.
 
 ---
 
-### 🔲 Instance Command Registration
+### ✅ Instance Command Registration
 
 Register commands bound to a specific object instance, enabling instance method callbacks without static boilerplate. Intended to support MonoBehaviour-hosted commands on the Unity side without any `UnityEngine` dependency in the library.
 
-- [ ] `RegisterInstance(object target, string instanceKey)` API — consumer supplies a stable string key to identify the instance
-- [ ] `[Command]` attribute on instance methods discovered at `RegisterInstance()` time (extends attribute-based registration)
-- [ ] Command names follow the scheme `"instanceKey.commandName"` (e.g. `"player.heal"`) — dot separator is fixed; instanceKey and commandName each follow normal naming rules
-- [ ] `UnregisterInstance(string instanceKey)` — removes all commands associated with that instance (critical for scene unload and object destruction)
-- [ ] Consumer is responsible for mapping Unity identity (GameObject name, tag, instance ID) to the instance key string; library does not interpret identity
-- [ ] When multiple instances of the same type exist, the consumer must supply a unique key per instance (e.g. `"enemy_1"`, `"enemy_2"`)
-- [ ] Broadcasting (call all instances sharing a type key) may be an explicit opt-in — deferred to design time
-- [ ] Auto-scan public instance methods and readable/writable properties of a registered type — these become instance commands without requiring a `[Command]` attribute
-- [ ] Private and protected members are ignored by auto-scan; explicit `[Command]` attribute or manual `Register()` call required to expose them
-- [ ] Writable property → setter command; readable property → getter command; read-write property → both registered
-- [ ] Consumer can opt out of auto-scan per registration if they want attribute-only discovery on a given type
+- [x] `RegisterInstance(object target, string instanceKey)` API — consumer supplies a stable string key to identify the instance
+- [x] `[Command]` attribute on instance methods discovered at `RegisterInstance()` time (extends attribute-based registration)
+- [x] Command names follow the scheme `"instanceKey.commandName"` (e.g. `"player.heal"`) — dot separator is fixed; instanceKey and commandName each follow normal naming rules
+- [x] `UnregisterInstance(string instanceKey)` — removes all commands associated with that instance (critical for scene unload and object destruction)
+- [x] Consumer is responsible for mapping Unity identity (GameObject name, tag, instance ID) to the instance key string; library does not interpret identity
+- [x] When multiple instances of the same type exist, the consumer must supply a unique key per instance (e.g. `"enemy_1"`, `"enemy_2"`)
+- [x] Broadcasting (call all instances sharing a type key) may be an explicit opt-in — deferred to design time
+- [x] Auto-scan public instance methods and readable/writable properties of a registered type — these become instance commands without requiring a `[Command]` attribute
+- [x] Private and protected members are ignored by auto-scan; explicit `[Command]` attribute or manual `Register()` call required to expose them
+- [x] Writable property → setter command; readable property → getter command; read-write property → both registered
+- [x] Consumer can opt out of auto-scan per registration if they want attribute-only discovery on a given type
 
 ---
 

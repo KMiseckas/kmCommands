@@ -46,10 +46,11 @@ namespace kmCommands.Core
         /// </summary>
         /// <param name="commandName">The command name as passed to <see cref="CommandSystem.Execute"/>.</param>
         /// <param name="args">The argument tokens passed to the command. May be <c>null</c>.</param>
-        internal void Record(string commandName, string[] args)
+        /// <param name="returnValue">The return value from the callback, or <c>null</c> for void commands.</param>
+        internal void Record(string commandName, string[] args, object returnValue)
         {
             string[] argsCopy = CopyArgs(args);
-            CommandHistoryEntry entry = new CommandHistoryEntry(commandName, argsCopy);
+            CommandHistoryEntry entry = new CommandHistoryEntry(commandName, argsCopy, returnValue);
 
             if (_count < _capacity)
             {

@@ -1,4 +1,4 @@
-// kmCommands (https://github.com/KMiseckas/kmCommands)
+﻿// kmCommands (https://github.com/KMiseckas/kmCommands)
 // Copyright (c) 2026 Klaudijus Miseckas
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
@@ -124,7 +124,7 @@ namespace kmCommands.Tests
             }
         }
 
-        // Non-static method with [Command] — requires BindingFlags.Instance so it is discovered
+        // Non-static method with [Command] â€” requires BindingFlags.Instance so it is discovered
         private class NonStaticTarget
         {
             [Command("scan_instance")]
@@ -211,7 +211,7 @@ namespace kmCommands.Tests
 
             ScanResult result = _system.Scan(typeof(DevOnlyTarget), opts);
 
-            // IsDevOnly commands must be silently skipped — no entry added at all
+            // IsDevOnly commands must be silently skipped â€” no entry added at all
             Assert.That(result.Entries.Length, Is.EqualTo(0));
             Assert.That(result.HasErrors, Is.False);
 
@@ -244,7 +244,7 @@ namespace kmCommands.Tests
             RegistrationResult manualReg = _system.Register(
                 "scan_heal",
                 new[] { new CommandParameterInfo("amount", typeof(int)) },
-                _ => { });
+                _ => null);
             Assert.That(manualReg.Success, Is.True);
 
             ScanResult result = _system.Scan(typeof(SingleCommandTarget));
