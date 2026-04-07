@@ -137,16 +137,16 @@ Execute multiple commands in a single input string using a delimiter.
 
 ---
 
-### 🔲 Commands as Command Arguments
+### ✅ Commands as Command Arguments
 
 Allow a command invocation to be used as an argument to another command, so the return value of the inner command is resolved first and passed as a typed argument to the outer command (e.g. `destroy(getPlayer(1))`).
 
-- [ ] Nested command invocation syntax — inner call wrapped in parentheses inside the outer call's argument position
-- [ ] Inner command is executed first; its return value is passed as the argument to the outer command
-- [ ] Type compatibility between inner return value and outer parameter type is validated before execution
-- [ ] Nesting depth limit defined at design time to prevent unbounded recursion
-- [ ] Errors in inner command execution propagate as a structured failure in the outer result — outer command is not invoked
-- [ ] AOT/IL2CPP safe — no runtime code generation or dynamic dispatch
+- [x] Nested command invocation syntax — inner call wrapped in parentheses inside the outer call's argument position
+- [x] Inner command is executed first; its return value is passed as the argument to the outer command
+- [x] Type compatibility between inner return value and outer parameter type is validated before execution
+- [x] Nesting depth limit defined at design time to prevent unbounded recursion
+- [x] Errors in inner command execution propagate as a structured failure in the outer result — outer command is not invoked
+- [x] AOT/IL2CPP safe — no runtime code generation or dynamic dispatch
 
 ---
 
