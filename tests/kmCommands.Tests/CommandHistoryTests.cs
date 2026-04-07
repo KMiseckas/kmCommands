@@ -296,5 +296,149 @@ namespace kmCommands.Tests
             _system.Execute("cmd2", Array.Empty<string>());
             Assert.That(snapshot.Length, Is.EqualTo(snapshotLength));
         }
+
+        // ── Timestamp ─────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_SuccessfulCommand_Timestamp_KindIsUtc()
+        {
+            RegisterNoArgs("cmd");
+            _system.Execute("cmd", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].Timestamp.Kind, Is.EqualTo(DateTimeKind.Utc));
+        }
+
+        [Test]
+        public void Execute_SuccessfulCommand_Timestamp_IsWithinOneSecondOfUtcNow()
+        {
+            RegisterNoArgs("cmd");
+            DateTime before = DateTime.UtcNow;
+            _system.Execute("cmd", Array.Empty<string>());
+            DateTime after = DateTime.UtcNow;
+
+            DateTime ts = _system.GetHistory()[0].Timestamp;
+            Assert.That(ts, Is.GreaterThanOrEqualTo(before));
+            Assert.That(ts, Is.LessThanOrEqualTo(after.AddSeconds(1)));
+        }
+
+        [Test]
+        public void Execute_FailedCommand_Timestamp_KindIsUtc()
+        {
+            _system.Execute("doesnotexist", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].Timestamp.Kind, Is.EqualTo(DateTimeKind.Utc));
+        }
+
+        // ── Status ────────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_SuccessfulCommand_Status_IsNone()
+        {
+            RegisterNoArgs("cmd");
+            _system.Execute("cmd", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.None));
+        }
+
+        [Test]
+        public void Execute_CommandNotFound_Status_IsCommandNotFound()
+        {
+            _system.Execute("doesnotexist", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.CommandNotFound));
+        }
+
+        [Test]
+        public void Execute_ArgumentConversionFailed_Status_IsArgumentConversionFailed()
+        {
+            Register("add", new[] { new CommandParameterInfo("n", typeof(int)) }, _ => null);
+            _system.Execute("add", new[] { "notanumber" });
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.ArgumentConversionFailed));
+        }
+
+        [Test]
+        public void Execute_ArgumentCountMismatch_Status_IsArgumentCountMismatch()
+        {
+            Register("add", new[] { new CommandParameterInfo("n", typeof(int)) }, _ => null);
+            _system.Execute("add", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.ArgumentCountMismatch));
+        }
+
+        // ── ErrorDetail ───────────────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_SuccessfulCommand_ErrorDetail_IsNull()
+        {
+            RegisterNoArgs("cmd");
+            _system.Execute("cmd", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].ErrorDetail, Is.Null);
+        }
+
+        [Test]
+        public void Execute_FailedCommand_ErrorDetail_MatchesExecutionResultErrorMessage()
+        {
+            ExecutionResult result = _system.Execute("doesnotexist", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].ErrorDetail, Is.EqualTo(result.ErrorMessage));
+        }
+
+        // ── RawInput ──────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_ZeroArgs_RawInput_LengthIsOneAndContainsCommandName()
+        {
+            RegisterNoArgs("cmd");
+            _system.Execute("cmd", Array.Empty<string>());
+            CommandHistoryEntry entry = _system.GetHistory()[0];
+            Assert.That(entry.RawInput.Length, Is.EqualTo(1));
+            Assert.That(entry.RawInput[0], Is.EqualTo("cmd"));
+        }
+
+        [Test]
+        public void Execute_MultipleArgs_RawInput_ContainsCommandNameAtIndexZeroAndAllArgs()
+        {
+            Register("greet", new[] { new CommandParameterInfo("a", typeof(string)), new CommandParameterInfo("b", typeof(string)) }, _ => null);
+            _system.Execute("greet", new[] { "a", "b" });
+            CommandHistoryEntry entry = _system.GetHistory()[0];
+            Assert.That(entry.RawInput.Length, Is.EqualTo(3));
+            Assert.That(entry.RawInput[0], Is.EqualTo("greet"));
+            Assert.That(entry.RawInput[1], Is.EqualTo("a"));
+            Assert.That(entry.RawInput[2], Is.EqualTo("b"));
+        }
+
+        [Test]
+        public void Execute_NullArgs_RawInput_LengthIsOne()
+        {
+            RegisterNoArgs("cmd");
+            _system.Execute("cmd", null);
+            CommandHistoryEntry entry = _system.GetHistory()[0];
+            Assert.That(entry.RawInput.Length, Is.EqualTo(1));
+            Assert.That(entry.RawInput[0], Is.EqualTo("cmd"));
+        }
+
+        [Test]
+        public void Execute_MutatingArgsAfterExecute_DoesNotAffectRawInput()
+        {
+            Register("greet", new[] { new CommandParameterInfo("msg", typeof(string)) }, _ => null);
+            string[] args = new[] { "original" };
+            _system.Execute("greet", args);
+            string rawBefore = _system.GetHistory()[0].RawInput[1];
+            args[0] = "mutated";
+            Assert.That(_system.GetHistory()[0].RawInput[1], Is.EqualTo(rawBefore));
+        }
+
+        // ── NotInitialized guard ──────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_BeforeInitialize_DoesNotRecord()
+        {
+            CommandSystem uninit = new CommandSystem();
+            uninit.Execute("cmd", Array.Empty<string>());
+            Assert.That(uninit.HistoryCount, Is.EqualTo(0));
+        }
+
+        // ── ReturnValue on failure ────────────────────────────────────────────────
+
+        [Test]
+        public void Execute_FailedCommand_ReturnValue_IsNull()
+        {
+            _system.Execute("doesnotexist", Array.Empty<string>());
+            Assert.That(_system.GetHistory()[0].ReturnValue, Is.Null);
+        }
     }
 }
