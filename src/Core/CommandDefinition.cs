@@ -3,6 +3,8 @@
 // Licensed under the Apache License, Version 2.0
 // See LICENSE file in the project root for full license information.
 
+using System;
+
 namespace kmCommands.Core
 {
     /// <summary>
@@ -23,14 +25,22 @@ namespace kmCommands.Core
         /// </summary>
         internal bool IsInstanceCommand { get; }
 
+        /// <summary>
+        /// The declared return type of the command's backing method or property.
+        /// Defaults to <see cref="object"/> for manually-registered commands.
+        /// <see cref="void"/> for commands that return no value.
+        /// </summary>
+        internal Type ReturnType { get; }
+
         internal CommandDefinition(string name, CommandParameterInfo[] parameters, CommandCallback callback,
-            string description, bool isInstanceCommand = false)
+            string description, bool isInstanceCommand = false, Type returnType = null)
         {
             Name = name;
             Parameters = parameters;
             Callback = callback;
             Description = description;
             IsInstanceCommand = isInstanceCommand;
+            ReturnType = returnType ?? typeof(object);
 
             int required = 0;
             for (int i = 0; i < parameters.Length; i++)

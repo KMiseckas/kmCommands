@@ -158,7 +158,7 @@ The `src/` structure currently implements:
 - `src/Results/ExecutionResult.cs` — `ExecutionResult` struct and `ExecutionError` enum (includes `InstanceNull`); `ReturnValue` (object) and `HasReturnValue` (bool) properties on success; `Ok(object returnValue = null)` factory
 - `src/Results/ScanResult.cs` — `ScanResult` class and `ScanEntry` struct; `ScanResult` exposes `IsAlreadyInitialized` (bool) public property, `AlreadyInitialized()` internal factory, and `SystemFailure(error, message)` internal factory.
 - `src/Results/UnregisterResult.cs` — `UnregisterResult` readonly struct; `Success`, `RemovedCount`, `ErrorMessage`; `internal static Ok(int)` / `Fail(string)` factories.
-- `src/Core/CommandDefinition.cs` — internal command storage model; `IsInstanceCommand` bool property (default `false`)
+- `src/Core/CommandDefinition.cs` — internal command storage model; `IsInstanceCommand` bool property (default `false`); `ReturnType` (internal `Type`, defaults to `typeof(object)`; `typeof(void)` for void-returning commands)
 - `src/Core/CommandRegistry.cs` — internal dictionary-backed command store; `TryRemove(name)` removes by name
 - `src/Core/ArgumentConverter.cs` — internal string-to-type converter (int, float, bool, string); extensible via `AddConverter(Type, TryConvertFunc)` internal method
 - `src/Core/ExecutionHandler.cs` — internal execution orchestrator; four-catch pattern: `TargetInvocationException`+NRE+IsInstanceCommand → InstanceNull; direct NRE+IsInstanceCommand → InstanceNull; other TargetInvocationException → CallbackThrewException; other Exception → CallbackThrewException
