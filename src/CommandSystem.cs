@@ -94,6 +94,33 @@ namespace kmCommands
         }
 
         /// <summary>
+        /// Initializes the command system using the settings in <paramref name="config"/>.
+        /// Equivalent to calling <c>Initialize(config.HistoryCapacity, config.DevMode)</c>.
+        /// Idempotent — calling when already initialized is a no-op.
+        /// A <c>null</c> config is treated as a no-op.
+        /// </summary>
+        /// <param name="config">
+        /// The configuration to apply. Obtain via <see cref="CommandConfig.FromJson"/> or
+        /// <see cref="CommandConfig.FromFile"/>. When <c>null</c>, the method returns immediately
+        /// without initialising the system.
+        /// </param>
+        public void Initialize(CommandConfig config)
+        {
+            if (IsInitialized)
+            {
+                return;
+            }
+
+            if (config == null)
+            {
+                return;
+            }
+
+            _devMode = config.DevMode;
+            InitializeCore(config.HistoryCapacity);
+        }
+
+        /// <summary>
         /// Initializes the command system and scans the given types for
         /// <see cref="CommandAttribute"/>-decorated methods.
         /// Idempotent — if already initialized, returns a <see cref="ScanResult"/> with
