@@ -85,12 +85,12 @@ Draft
 
 New get-only properties:
 
-| Property | Type | Description |
-|---|---|---|
-| `Timestamp` | `System.DateTime` | UTC time recorded at the moment the entry was created. |
-| `RawInput` | `string` or `string[]` (see OQ-1) | Input tokens as passed to `Execute()`, before any processing. |
-| `Status` | `ExecutionError` | `ExecutionError.None` on success; specific error value on failure. |
-| `ErrorDetail` | `string` | `null` on success; the `ErrorMessage` from `ExecutionResult` on failure. |
+| Property      | Type                              | Description                                                              |
+| ------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| `Timestamp`   | `System.DateTime`                 | UTC time recorded at the moment the entry was created.                   |
+| `RawInput`    | `string` or `string[]` (see OQ-1) | Input tokens as passed to `Execute()`, before any processing.            |
+| `Status`      | `ExecutionError`                  | `ExecutionError.None` on success; specific error value on failure.       |
+| `ErrorDetail` | `string`                          | `null` on success; the `ErrorMessage` from `ExecutionResult` on failure. |
 
 The `internal` constructor gains four additional parameters corresponding to the new properties. Parameter order in the constructor is an implementation detail left to design.
 

@@ -557,4 +557,3 @@ Run the complete build and test suite clean to confirm there are zero failures, 
 - History filtering/querying — explicitly out of scope.
 - Command chaining history integration — explicitly out of scope.
 - Serialisation of `CommandHistoryEntry` — explicitly out of scope.
-

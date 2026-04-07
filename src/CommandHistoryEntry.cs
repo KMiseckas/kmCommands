@@ -85,11 +85,11 @@ namespace kmCommands
             string errorDetail)
         {
             _commandName = commandName;
-            _args        = args;
+            _args = args;
             _returnValue = returnValue;
-            _timestamp   = timestamp;
-            _rawInput    = rawInput;
-            _status      = status;
+            _timestamp = timestamp;
+            _rawInput = rawInput;
+            _status = status;
             _errorDetail = errorDetail;
         }
     }
