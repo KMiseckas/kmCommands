@@ -47,10 +47,23 @@ namespace kmCommands.Core
         /// <param name="commandName">The command name as passed to <see cref="CommandSystem.Execute"/>.</param>
         /// <param name="args">The argument tokens passed to the command. May be <c>null</c>.</param>
         /// <param name="returnValue">The return value from the callback, or <c>null</c> for void commands.</param>
-        internal void Record(string commandName, string[] args, object returnValue)
+        /// <param name="timestamp">The UTC time at which the entry was recorded.</param>
+        /// <param name="rawInput">Pre-built isolated snapshot of raw input tokens; stored directly without re-copying.</param>
+        /// <param name="status">The execution outcome status.</param>
+        /// <param name="errorDetail">The error message from the result, or <c>null</c> for successful executions.</param>
+        internal void Record(
+            string commandName,
+            string[] args,
+            object returnValue,
+            DateTime timestamp,
+            string[] rawInput,
+            ExecutionError status,
+            string errorDetail)
         {
             string[] argsCopy = CopyArgs(args);
-            CommandHistoryEntry entry = new CommandHistoryEntry(commandName, argsCopy, returnValue);
+            CommandHistoryEntry entry = new CommandHistoryEntry(
+                commandName, argsCopy, returnValue,
+                timestamp, rawInput, status, errorDetail);
 
             if (_count < _capacity)
             {

@@ -550,14 +550,41 @@ namespace kmCommands
                     null);
             }
 
+            DateTime timestamp = DateTime.UtcNow;
+            string[] rawInput = BuildRawInput(commandName, args);
+
             ExecutionResult result = _executionHandler.Execute(commandName, args);
 
-            if (result.Success)
-            {
-                _historyBuffer.Record(commandName, args, result.ReturnValue);
-            }
+            _historyBuffer.Record(
+                commandName,
+                args,
+                result.ReturnValue,
+                timestamp,
+                rawInput,
+                result.Error,
+                result.ErrorMessage);
 
             return result;
+        }
+
+        /// <summary>
+        /// Builds an isolated snapshot of the raw input tokens as passed to <see cref="Execute"/>.
+        /// Index 0 is the command name; indices 1..n are the argument tokens.
+        /// </summary>
+        private static string[] BuildRawInput(string commandName, string[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return new string[] { commandName };
+            }
+
+            string[] raw = new string[1 + args.Length];
+            raw[0] = commandName;
+            for (int i = 0; i < args.Length; i++)
+            {
+                raw[i + 1] = args[i];
+            }
+            return raw;
         }
 
         /// <summary>
