@@ -615,6 +615,43 @@ namespace kmCommands
         }
 
         /// <summary>
+        /// Extracts the innermost partial command-name token for autocomplete when the
+        /// prefix contains an unclosed <c>$(…)</c> delimiter.
+        /// Returns the prefix unchanged when no unclosed delimiter is detected.
+        /// </summary>
+        private static string ExtractInnermostPrefix(string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+                return prefix;
+
+            int depth = 0;
+            int lastUnclosedStart = 0;
+
+            for (int i = 0; i < prefix.Length; i++)
+            {
+                if (prefix[i] == '$' && i + 1 < prefix.Length && prefix[i + 1] == '(')
+                {
+                    depth++;
+                    lastUnclosedStart = i + 2;
+                    i++; // skip '('
+                }
+                else if (prefix[i] == ')' && depth > 0)
+                {
+                    depth--;
+                }
+            }
+
+            if (depth > 0)
+            {
+                string inner = prefix.Substring(lastUnclosedStart);
+                int lastSpace = inner.LastIndexOf(' ');
+                return lastSpace < 0 ? inner : inner.Substring(lastSpace + 1);
+            }
+
+            return prefix;
+        }
+
+        /// <summary>
         /// Builds an isolated snapshot of the raw input tokens as passed to <see cref="Execute"/>.
         /// Index 0 is the command name; indices 1..n are the argument tokens.
         /// </summary>
@@ -1079,9 +1116,10 @@ namespace kmCommands
             if (!IsInitialized)
                 return Array.Empty<CommandSuggestion>();
 
+            string effectivePrefix = ExtractInnermostPrefix(prefix);
             ISuggestionMatcher effective = matcher ?? _suggestionMatcher ?? _defaultMatcher;
             string[] names = _registry.GetAllNames();
-            IList<string> matched = effective.Match(prefix, names);
+            IList<string> matched = effective.Match(effectivePrefix, names);
 
             if (matched == null || matched.Count == 0)
                 return Array.Empty<CommandSuggestion>();

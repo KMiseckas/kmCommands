@@ -1363,3 +1363,18 @@ All other existing `ExecutionError` values continue to apply to the outer comman
 - The inner return type must be compatible with the outer parameter type, or convertible via the registered string converter for that type.
 - Setter property commands (`key.set_Property`) are void and cannot be nested.
 - Circular command calls (a command that calls itself via nesting) are bounded by the depth limit and will return `NestedCommandDepthExceeded` rather than stack-overflow.
+
+### Autocompletion Support
+
+`GetSuggestions(prefix)` detects an unclosed `$(` in the prefix and automatically scopes suggestions to the inner command name being typed. This means the autocomplete experience is consistent whether the user is typing a top-level command or an argument to another command.
+
+Examples:
+
+| Prefix typed by user | Suggestions returned |
+|---|---|
+| `"heal"` | Commands starting with `"heal"` (normal behavior) |
+| `"$("` | All registered commands |
+| `"$(get"` | Commands starting with `"get"` |
+| `"$(outer $(get"` | Commands starting with `"get"` (innermost open delimiter wins) |
+
+Closed `$(…)` expressions in the prefix do not affect suggestion scoping — only the innermost unclosed `$(` is relevant.
