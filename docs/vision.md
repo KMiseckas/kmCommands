@@ -102,14 +102,14 @@ Maintain an in-memory ring buffer of successfully executed commands for consumer
 
 ---
 
-### 🔲 Rich History Entries
+### ✅ Rich History Entries
 
 Extend `CommandHistoryEntry` to record richer execution context beyond the current command name and argument snapshot.
 
-- [ ] Timestamp (UTC) recorded at execution time
-- [ ] Raw input string as originally passed to `Execute()`, before any processing
-- [ ] Result status (success or the specific `ExecutionError` value)
-- [ ] Error detail string when execution fails
+- [x] Timestamp (UTC) recorded at execution time
+- [x] Raw input string as originally passed to `Execute()`, before any processing
+- [x] Result status (success or the specific `ExecutionError` value)
+- [x] Error detail string when execution fails
 
 ---
 
