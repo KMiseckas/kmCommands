@@ -46,23 +46,21 @@ namespace kmCommands.Tests
         public void ExecuteResolved_PreResolvedArg_AssignableType_Passes()
         {
             var sys = BuildSystem();
-            sys.Initialize();
 
-            // Register inner (returns object) and outer (accepts object).
+            // inner returns boxed int; outer expects int (exact type match — assignable).
             sys.Register("inner",
                 Array.Empty<CommandParameterInfo>(),
-                _ => (object)"payload");
+                _ => (object)42);
 
-            object received = null;
+            int received = -1;
             sys.Register("outer",
-                new[] { new CommandParameterInfo("val", typeof(object)) },
-                args => { received = args[0]; return null; });
+                new[] { new CommandParameterInfo("val", typeof(int)) },
+                args => { received = (int)args[0]; return null; });
 
-            // Execute with nested token — resolver runs ExecuteResolved internally.
             var result = sys.Execute("outer", new[] { "$(inner)" });
 
             Assert.That(result.Success, Is.True);
-            Assert.That(received, Is.EqualTo("payload"));
+            Assert.That(received, Is.EqualTo(42));
         }
 
         [Test]
@@ -319,26 +317,16 @@ namespace kmCommands.Tests
         [Test]
         public void Execute_NestedCommandVoidReturn_ReturnsNestedCommandVoidReturn()
         {
-            var sys = BuildSystem();
+            // A truly void-return command (ReturnType == typeof(void)) must be rejected
+            // by the resolver's pre-check before any execution occurs.
+            var sys = new CommandSystem();
+            sys.Initialize(new[] { typeof(VoidReturnHost) });
 
-            // void-return command
-            sys.Register("voidCmd",
-                Array.Empty<CommandParameterInfo>(),
-                _ => null); // callback returns null → void
-
-            // However, we need ReturnType == void. Since manual Register uses typeof(object),
-            // we test via a scanned method instead.
-            // For the void-check against ReturnType, we use a scanned static method.
-            sys.Shutdown();
-
-            var sys2 = BuildSystem();
-            var result2 = sys2.Initialize(new[] { typeof(VoidReturnHost) });
-
-            sys2.Register("outer",
-                new[] { new CommandParameterInfo("val", typeof(object)) },
+            sys.Register("outer",
+                new[] { new CommandParameterInfo("val", typeof(int)) },
                 args => null);
 
-            var r = sys2.Execute("outer", new[] { "$(VoidReturnHost_VoidCmd)" });
+            var r = sys.Execute("outer", new[] { "$(VoidReturnHost_VoidCmd)" });
 
             Assert.That(r.Success, Is.False);
             Assert.That(r.Error, Is.EqualTo(ExecutionError.NestedCommandVoidReturn));

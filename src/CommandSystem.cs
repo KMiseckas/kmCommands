@@ -38,6 +38,8 @@ namespace kmCommands
         private TypeCommandProfileCache _profileCache;
         private bool _devMode;
         private ISuggestionMatcher _suggestionMatcher;
+        private Core.NestedCommandResolver _nestedResolver;
+        private int _nestedCommandDepth = DefaultNestedCommandDepth;
         private readonly Dictionary<Type, TypeConverterDelegate> _pendingConverters
             = new Dictionary<Type, TypeConverterDelegate>();
 
@@ -46,6 +48,12 @@ namespace kmCommands
         /// Used when <see cref="Initialize()"/> is called without an explicit capacity argument.
         /// </summary>
         public const int DefaultHistoryCapacity = 64;
+
+        /// <summary>
+        /// The default maximum nesting depth for nested command resolution.
+        /// Used when no <see cref="CommandConfig.NestedCommandDepth"/> is configured.
+        /// </summary>
+        public const int DefaultNestedCommandDepth = 4;
 
         /// <summary>
         /// Gets a value indicating whether the system has been initialized.
@@ -274,6 +282,9 @@ namespace kmCommands
 
             _pendingConverters.Clear();
             _historyBuffer = new CommandHistoryBuffer(effectiveCapacity);
+            int effectiveDepth = _nestedCommandDepth < 1 ? 1 : _nestedCommandDepth;
+            _nestedResolver = new Core.NestedCommandResolver(
+                _registry, _executionHandler, _historyBuffer, effectiveDepth);
             IsInitialized = true;
         }
 
@@ -339,6 +350,8 @@ namespace kmCommands
             _historyBuffer = null;
             _devMode = false;
             _suggestionMatcher = null;
+            _nestedResolver = null;
+            _nestedCommandDepth = DefaultNestedCommandDepth;
             _pendingConverters.Clear();
             IsInitialized = false;
         }
@@ -553,7 +566,24 @@ namespace kmCommands
             DateTime timestamp = DateTime.UtcNow;
             string[] rawInput = BuildRawInput(commandName, args);
 
-            ExecutionResult result = _executionHandler.Execute(commandName, args);
+            ExecutionResult result;
+
+            if (HasNestedTokens(args))
+            {
+                Core.NestedResolveResult resolved = _nestedResolver.ResolveArgs(args, 0);
+                if (!resolved.Success)
+                {
+                    result = resolved.Error;
+                }
+                else
+                {
+                    result = _executionHandler.ExecuteResolved(commandName, resolved.ResolvedArgs);
+                }
+            }
+            else
+            {
+                result = _executionHandler.Execute(commandName, args);
+            }
 
             _historyBuffer.Record(
                 commandName,
@@ -565,6 +595,22 @@ namespace kmCommands
                 result.ErrorMessage);
 
             return result;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when any element of <paramref name="args"/> is a nested command token
+        /// (starts with <c>$(</c>). Used as a fast-path guard before resolver invocation.
+        /// </summary>
+        private static bool HasNestedTokens(string[] args)
+        {
+            if (args == null) return false;
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] != null && args[i].Length >= 3
+                    && args[i][0] == '$' && args[i][1] == '(')
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>
