@@ -134,7 +134,19 @@ Execute multiple commands in a single input string using a delimiter.
 - [ ] Execute each segment in sequence
 - [ ] Return aggregated or per-command results
 - [ ] Option: stop-on-failure vs continue-on-failure
-- [ ] Allow commands to return types directly into other commands (commands as arguments by type) i.e: destroy(getPlayer(1)) in command format.
+
+---
+
+### 🔲 Commands as Command Arguments
+
+Allow a command invocation to be used as an argument to another command, so the return value of the inner command is resolved first and passed as a typed argument to the outer command (e.g. `destroy(getPlayer(1))`).
+
+- [ ] Nested command invocation syntax — inner call wrapped in parentheses inside the outer call's argument position
+- [ ] Inner command is executed first; its return value is passed as the argument to the outer command
+- [ ] Type compatibility between inner return value and outer parameter type is validated before execution
+- [ ] Nesting depth limit defined at design time to prevent unbounded recursion
+- [ ] Errors in inner command execution propagate as a structured failure in the outer result — outer command is not invoked
+- [ ] AOT/IL2CPP safe — no runtime code generation or dynamic dispatch
 
 ---
 
@@ -234,26 +246,63 @@ Evaluate arithmetic expressions in argument strings before type conversion, so v
 
 ---
 
-### 🔲 LLM / AI Integration (Dev-Only)
+### 🔲 AI Infrastructure (Dev-Only)
 
-Natural language command dispatch and autonomous AI agent loops backed by external LLMs. Strictly developer tooling — must never be present in release builds.
+Foundation layer for all LLM-backed features. Strictly developer tooling — must never be present in release builds. All AI types, interfaces, and code paths are stripped at compile time unless the consumer defines `KMCOMMANDS_AI`.
 
-**Natural language parsing**: consumer passes a free-text string; an LLM resolves it to a recognised command + arguments, which the library then executes through its normal execution path.
+**Provider interface**: `ILlmProvider` is a minimal async text-in / text-out contract. The consumer wires up their preferred backend (OpenAI, Anthropic, local model, etc.) — no bundled provider, no model-specific types in the library.
 
-**AI agent loop**: given a goal string, an LLM is provided the full command registry as context and autonomously generates and executes a sequence of commands to accomplish the goal.
+**Settings**: an `AiSettings` struct holds AI-specific configuration (max iterations cap, context token budget hint, etc.) and is passed at `Initialize()` time or supplied via `CommandConfig`. Auth tokens are part of the consumer's `ILlmProvider` implementation — never a library concern and never serialised.
 
-**Richer context via MonoBehaviour auto-scan**: the public-method/property auto-scan from Instance Command Registration significantly expands the command surface available to an LLM agent without requiring the consumer to manually register every game function — more registered commands means more options for the LLM to compose goal-achieving sequences.
+**Queue**: AI operations are async-first. A dedicated AI command queue accepts dispatched requests so Unity main-thread code can fire-and-forget without blocking the frame.
 
-- [ ] Natural language string → command resolution via LLM, returned through normal `ExecutionResult`
-- [ ] AI agent loop: iterative goal → command sequence generation using live registry context
-- [ ] Consumer provides their own LLM API token via a dedicated initialisation call — token is held only in memory, never written to disk, never logged anywhere
-- [ ] LLM provider is pluggable via interface — no bundled provider; consumer wires up their preferred backend (e.g. OpenAI, Anthropic, local model)
-- [ ] Feature gated behind a compile-time symbol (e.g. `KMCOMMANDS_AI`) — all AI types and code are stripped from builds that do not define it
-- [ ] Secondary runtime guard at every AI call site — no-op with a clear diagnostic result if built without the compile symbol or if not in a dev context
-- [ ] Token and provider config must not appear in any serialised state, asset, or scene file that could ship in a release build
-- [ ] Agent loop has a configurable max-iteration cap (default TBD at design time); loop terminates with a diagnostic result when the cap is reached
+- [ ] `ILlmProvider` interface — single `Task<string> CallAsync(string prompt)` method; AOT-safe, no generic type parameters
+- [ ] `AiSettings` struct — `MaxIterations` (int), `ContextTokenBudget` (int hint, default TBD); injectable at `Initialize()` time or via `CommandConfig`
+- [ ] Auth token held entirely within the consumer's `ILlmProvider` implementation — never accepted, stored, or logged by the library
+- [ ] `ILlmProvider` injectable alongside (or after) `Initialize()`; null provider is never an error — AI call sites return a clear `NotConfigured` diagnostic result
+- [ ] Compile-time gate: `KMCOMMANDS_AI` symbol — all AI types stripped from builds that do not define it
+- [ ] Runtime guard at every AI call site — returns `NotConfigured` no-op result if symbol absent or provider not set
+- [ ] Async AI command queue — queues in-flight AI operations; `Shutdown()` cancels pending work and clears the provider reference
+- [ ] Shared AI result type(s) covering: `Success`, `NotConfigured`, `ProviderError`, `ParseFailure`, `CapReached`, `Cancelled`
+- [ ] Token and provider config must not appear in any serialised state, asset, or config file that could ship in a release build
+- [ ] Documentation must warn: do not enable in release builds; do not hard-code tokens in source; consumer is responsible for rate limiting and cost management
+
+---
+
+### 🔲 Natural Language Command Dispatch (Dev-Only)
+
+Requires **AI Infrastructure** to be in place. Consumer passes a free-text string; the library builds a structured prompt from the live registry, sends it to the configured `ILlmProvider`, parses the response, and dispatches the resolved command through the normal execution path.
+
+**Prompt construction**: the library serialises the registry to a compact JSON block (command names, parameter names/types, descriptions) and wraps the user's input in a pre-defined envelope. Consumer can inject an `IPromptFormatter` to customise the system prompt or user message wrapper; the built-in formatter is used when none is set.
+
+**Response envelope**: the LLM is instructed (via the system prompt) to return a flat JSON object: `{ "command": "commandName", "args": ["arg1", "arg2"] }`. The library owns and parses this schema — the consumer's `ILlmProvider` returns raw text and is unaware of it.
+
+- [ ] `ExecuteNaturalLanguageAsync(string input, CancellationToken)` on `CommandSystem` — returns `Task<NlCommandResult>`
+- [ ] `NlCommandResult` — carries resolved command name, resolved args, the underlying `ExecutionResult`, and an `NlCommandError` status (`None`, `NotConfigured`, `ProviderError`, `ParseFailure`, `CommandNotFound`, `ExecutionFailed`, `Cancelled`)
+- [ ] Built-in registry-to-JSON context builder — serialises command names, parameter names/types, and descriptions into a compact JSON block; no third-party serialiser
+- [ ] Default system prompt template built into the library — instructs the LLM to emit the response envelope; no consumer action required to get basic behaviour
+- [ ] `IPromptFormatter` interface — optional consumer-supplied hook to replace or wrap the default system prompt and/or user message; null/unset uses the built-in template
+- [ ] Response envelope parser — hand-rolled flat-JSON parse of `{ "command": ..., "args": [...] }`; AOT-safe; failure → `ParseFailure` result
+- [ ] Resolved command is dispatched through the existing `Execute()` path — argument conversion, validation, and history recording behave identically to a direct call
 - [ ] Consumer is responsible for rate limiting, cost management, and compliance with their LLM provider's terms of service
-- [ ] Documentation must warn: do not enable in release builds; do not hard-code tokens in source
+
+---
+
+### 🔲 AI Agent Loop (Dev-Only)
+
+Requires **AI Infrastructure** and **Natural Language Command Dispatch** to be in place. Given a goal string, the library iteratively prompts the configured `ILlmProvider` with the full registry context and a record of previously executed commands, generating and executing a sequence of commands until the LLM signals completion or the iteration cap is reached.
+
+**Context growth**: each iteration appends the executed command name, args, and execution outcome to the running context so the LLM can reason about progress toward the goal.
+
+**Done signal**: the LLM response envelope for agent-loop iterations is `{ "done": bool, "commands": [{ "name": "...", "args": [...] }] }`. The library owns this schema; the system prompt instructs the LLM to emit it. Multiple commands may be returned per iteration and are executed in sequence before the next LLM call.
+
+- [ ] `RunAgentLoopAsync(string goal, CancellationToken)` on `CommandSystem` — returns `Task<AgentLoopResult>`
+- [ ] `AgentLoopResult` — carries per-iteration summaries (commands attempted, outcomes), final status (`Completed`, `CapReached`, `ProviderError`, `ParseFailure`, `Cancelled`, `NotConfigured`), and total iteration count
+- [ ] Iteration cap from `AiSettings.MaxIterations`; loop terminates with `CapReached` status when hit
+- [ ] `CancellationToken` respected between iterations — cancellation returns `Cancelled` result with work done so far
+- [ ] Per-iteration context builder appends executed command names, args, and outcome summaries to the running prompt; `AiSettings.ContextTokenBudget` hint used to trim oldest entries when context grows large
+- [ ] Multi-command response per iteration — all commands in `"commands"` array executed in sequence; any execution failure recorded in result but loop continues unless `"done": true`
+- [ ] Consumer is responsible for rate limiting, cost management, and compliance with their LLM provider's terms of service
 
 ---
 
