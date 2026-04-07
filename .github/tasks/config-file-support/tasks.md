@@ -2,9 +2,9 @@
 
 ## Status
 
-- [ ] Planned
-- [ ] In Progress
-- [ ] Completed
+- [x] Planned
+- [x] In Progress
+- [x] Completed
 
 ## Inputs
 
@@ -32,7 +32,7 @@
 
 ### Task 1: Implement `JsonConfigParser` (internal)
 
-- [ ] Not started
+- [x] Completed (commit 0310db9)
 
 **Objective:**
 
@@ -108,7 +108,7 @@ Implement the internal `JsonConfigParser` static class in `src/Core/JsonConfigPa
 
 ### Task 2: Add `ConfigError` enum and `ConfigResult` struct
 
-- [ ] Not started
+- [x] Completed (commit 12ab2ff)
 
 **Objective:**
 
@@ -172,7 +172,7 @@ Create the public result type pair `ConfigError` (enum) and `ConfigResult` (read
 
 ### Task 3: Implement `CommandConfig` class
 
-- [ ] Not started
+- [x] Completed (commit 31b8c2d)
 
 **Objective:**
 
@@ -250,7 +250,7 @@ Create the public `CommandConfig` sealed class in `src/CommandConfig.cs` with ty
 
 ### Task 4: Add `CommandSystem.Initialize(CommandConfig)` overload and update docs
 
-- [ ] Not started
+- [x] Completed (commit 943e46d)
 
 **Objective:**
 
@@ -324,7 +324,7 @@ Add the `Initialize(CommandConfig config)` overload to `CommandSystem`. Update `
 
 ### Task 5: Full integration and unit test suite (`ConfigTests.cs`)
 
-- [ ] Not started
+- [x] Completed (commit d745083)
 
 **Objective:**
 

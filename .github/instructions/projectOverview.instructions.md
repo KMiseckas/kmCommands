@@ -53,7 +53,7 @@ It does not implement UI, input handling, rendering, MonoBehaviour lifecycle beh
 - `src/Core/InstanceRegistry.cs`: internal `InstanceRegistry` sealed class — maps instanceKey → command names + target object.
 - `src/Core/InstanceScanner.cs`: internal `InstanceScanner` sealed class — discovers and registers instance members; `Scan()` for cold path; `BuildProfile()` for pre-scan; `ScanFromProfile()` for cache-hit fast path.
 - `src/Core/InstanceCallbackBuilder.cs`: internal static class — builds AOT-safe instance-bound delegates.
-- `tests/kmCommands.Tests/`: NUnit test project (341+ passing tests).
+- `tests/kmCommands.Tests/`: NUnit test project (376+ passing tests).
 - `tests/kmCommands.Tests/AutoScanAtInitializeTests.cs`: 25 tests covering all scanning-at-initialize behavior.
 - `tests/kmCommands.Tests/InstanceScannerTests.cs`: 27 tests covering InstanceScanner/InstanceCallbackBuilder internal behavior.
 - `tests/kmCommands.Tests/InstanceCommandRegistrationTests.cs`: integration tests for RegisterInstance/UnregisterInstance public API.
