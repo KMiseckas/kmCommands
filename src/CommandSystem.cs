@@ -125,6 +125,7 @@ namespace kmCommands
             }
 
             _devMode = config.DevMode;
+            _nestedCommandDepth = config.NestedCommandDepth;
             InitializeCore(config.HistoryCapacity);
         }
 

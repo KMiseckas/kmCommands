@@ -612,5 +612,88 @@ namespace kmCommands.Tests
             [Command("config_devonly_cmd", IsDevOnly = true)]
             public static void DevOnlyCommand() { }
         }
+
+        // -- NestedCommandDepth config tests ------------------------------------
+
+        [Test]
+        public void FromJson_NestedCommandDepth_ParsedCorrectly()
+        {
+            var result = CommandConfig.FromJson("{ \"nestedCommandDepth\": 2 }");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Config.NestedCommandDepth, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FromJson_NestedCommandDepthAbsent_DefaultApplied()
+        {
+            var result = CommandConfig.FromJson("{}");
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Config.NestedCommandDepth,
+                Is.EqualTo(CommandSystem.DefaultNestedCommandDepth));
+        }
+
+        [Test]
+        public void FromJson_NestedCommandDepth_TypeMismatch_ReturnsFail()
+        {
+            var result = CommandConfig.FromJson("{ \"nestedCommandDepth\": \"bad\" }");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(ConfigError.TypeMismatch));
+        }
+
+        [Test]
+        public void Initialize_WithConfig_DepthApplied_DepthExceededAtConfiguredLimit()
+        {
+            // depth = 2: outer call starts at depth 0; each $(…) token increments depth.
+            // 2 levels: $(mid $(inner)) — token at depth 0, inner's arg at depth 1 → success.
+            // 3 levels: $(mid $(deep $(inner))) — depth 0, 1, then 2 >= maxDepth → exceeded.
+            var config = new CommandConfig { NestedCommandDepth = 2 };
+            _system.Initialize(config);
+
+            _system.Register("inner",
+                Array.Empty<CommandParameterInfo>(),
+                _ => (object)"val");
+            _system.Register("mid",
+                new[] { new CommandParameterInfo("x", typeof(string)) },
+                args => args[0]);
+            _system.Register("deep",
+                new[] { new CommandParameterInfo("x", typeof(string)) },
+                args => args[0]);
+            _system.Register("outer",
+                new[] { new CommandParameterInfo("v", typeof(string)) },
+                args => args[0]);
+
+            // 2 levels deep — should succeed (depth 0 → token, depth 1 → inner token, depth 2 for empty args).
+            var ok = _system.Execute("outer", new[] { "$(mid $(inner))" });
+            Assert.That(ok.Success, Is.True,
+                "Expected success at 2 nesting levels with limit 2.");
+
+            // 3 levels deep — should fail: depth 2 hits `$(inner)` token which is >= maxDepth=2.
+            var fail = _system.Execute("outer", new[] { "$(mid $(deep $(inner)))" });
+            Assert.That(fail.Error, Is.EqualTo(ExecutionError.NestedCommandDepthExceeded),
+                "Expected NestedCommandDepthExceeded at 3 nesting levels with limit 2.");
+        }
+
+        [Test]
+        public void Initialize_WithConfig_DepthZero_ClampedToOne()
+        {
+            // depth = 0 in config → clamped to 1 in InitializeCore → one level of nesting allowed.
+            var config = new CommandConfig { NestedCommandDepth = 0 };
+            _system.Initialize(config);
+
+            _system.Register("inner",
+                Array.Empty<CommandParameterInfo>(),
+                _ => (object)42);
+            _system.Register("outer",
+                new[] { new CommandParameterInfo("v", typeof(int)) },
+                args => args[0]);
+
+            // Exactly 1 level — should succeed.
+            var ok = _system.Execute("outer", new[] { "$(inner)" });
+            Assert.That(ok.Success, Is.True,
+                "Expected 1-level nesting to succeed when depth clamped to 1.");
+        }
     }
 }
