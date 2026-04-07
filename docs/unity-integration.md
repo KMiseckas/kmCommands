@@ -393,8 +393,8 @@ As an alternative to code-only `Initialize()` calls, you can load settings from 
 
 ```json
 {
-    "historyCapacity": 128,
-    "devMode": true
+  "historyCapacity": 128,
+  "devMode": true
 }
 ```
 
@@ -442,11 +442,11 @@ public class CommandManager : MonoBehaviour
 
 ### `ConfigError` Values
 
-| Value           | Cause                                                                    |
-| --------------- | ------------------------------------------------------------------------ |
-| `InvalidJson`   | JSON was null, empty, or structurally malformed.                         |
-| `TypeMismatch`  | A known key had the wrong JSON type (e.g. `"devMode": 42`).              |
-| `FileReadError` | File path was invalid, not found, or an I/O error occurred.              |
+| Value           | Cause                                                       |
+| --------------- | ----------------------------------------------------------- |
+| `InvalidJson`   | JSON was null, empty, or structurally malformed.            |
+| `TypeMismatch`  | A known key had the wrong JSON type (e.g. `"devMode": 42`). |
+| `FileReadError` | File path was invalid, not found, or an I/O error occurred. |
 
 ### After `Shutdown()`
 

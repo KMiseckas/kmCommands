@@ -1174,17 +1174,17 @@ CommandSuggestion[] suggestions = snapshot.GetSuggestions("he", myCustomMatcher)
 
 `CommandConfig` is a public class that holds the initialisation settings with coded defaults:
 
-| Property          | Type   | Default                             | Description                                        |
-| ----------------- | ------ | ----------------------------------- | -------------------------------------------------- |
-| `HistoryCapacity` | `int`  | `CommandSystem.DefaultHistoryCapacity` | Max history entries. Values < 1 are clamped to 1. |
-| `DevMode`         | `bool` | `false`                             | Enables dev-mode — dev-only commands are included. |
+| Property          | Type   | Default                                | Description                                        |
+| ----------------- | ------ | -------------------------------------- | -------------------------------------------------- |
+| `HistoryCapacity` | `int`  | `CommandSystem.DefaultHistoryCapacity` | Max history entries. Values < 1 are clamped to 1.  |
+| `DevMode`         | `bool` | `false`                                | Enables dev-mode — dev-only commands are included. |
 
 ### Writing a Config File
 
 ```json
 {
-    "historyCapacity": 128,
-    "devMode": true
+  "historyCapacity": 128,
+  "devMode": true
 }
 ```
 
@@ -1248,12 +1248,12 @@ Both factory methods return a `ConfigResult` readonly struct:
 
 ### `ConfigError` Enum
 
-| Value           | Cause                                                                        |
-| --------------- | ---------------------------------------------------------------------------- |
-| `None`          | Success.                                                                     |
-| `InvalidJson`   | JSON was null, empty, or structurally malformed.                             |
-| `TypeMismatch`  | A known key had the wrong JSON value type (e.g. `"devMode": 42`).            |
-| `FileReadError` | File path was invalid, the file was not found, or an I/O error occurred.     |
+| Value           | Cause                                                                    |
+| --------------- | ------------------------------------------------------------------------ |
+| `None`          | Success.                                                                 |
+| `InvalidJson`   | JSON was null, empty, or structurally malformed.                         |
+| `TypeMismatch`  | A known key had the wrong JSON value type (e.g. `"devMode": 42`).        |
+| `FileReadError` | File path was invalid, the file was not found, or an I/O error occurred. |
 
 ### Minimal Usage Example
 
