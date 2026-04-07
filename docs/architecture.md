@@ -57,7 +57,9 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 - **Scan-at-init overloads:** Three additional `Initialize` overloads accept scan targets (`Type[]`, `Assembly[]`, or both) and a `ScanOptions` value, run attribute-based scanning during initialization, and return an aggregated `ScanResult`. If already initialized, these overloads return `ScanResult.AlreadyInitialized()` immediately without re-scanning. `ScanResult.IsAlreadyInitialized` distinguishes this no-op path from a zero-entry scan result.
 - **Owns:** `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `CommandHistoryBuffer`, `InstanceRegistry`, `InstanceScanner`, `TypeCommandProfileCache`. All are nulled on `Shutdown()`; `InstanceRegistry.Clear()` and `TypeCommandProfileCache.Clear()` are called before nulling.
 - **Custom converters:** `RegisterConverter(Type, TypeConverterDelegate)` buffers converters (pre-init) or applies them directly (post-init). `_pendingConverters` is a `readonly` field that survives `Initialize()` and `Shutdown()` cycles — only `.Clear()` is called on it.
-- **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records successful executions to the buffer. `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
+- **History:** `Initialize()` creates a `CommandHistoryBuffer` using `DefaultHistoryCapacity` (64). `Initialize(int)` and the scan-at-init overloads accept an explicit capacity (clamped to ≥ 1). `Execute()` records **all executions that pass the `IsInitialized` guard** — including both successes and all failure modes (`NullOrEmptyCommandName`, `CommandNotFound`, `ArgumentCountMismatch`, `ArgumentConversionFailed`, `CallbackThrewException`, `InstanceNull`). Calls that return `NotInitialized` are never recorded (the buffer does not exist before initialization). Before invoking the execution handler, `Execute()` captures `DateTime.UtcNow` as the entry timestamp and calls the private static helper `BuildRawInput(commandName, args)` to build an isolated `string[]` snapshot of the raw input (`commandName` at index 0, caller args at 1..n — null/empty args produce a length-1 array). The resulting `CommandHistoryEntry` stores: `CommandName`, `Args` (isolated copy), `ReturnValue` (null on failure), `Timestamp` (UTC), `RawInput` (isolated snapshot), `Status` (`ExecutionError.None` on success; specific error on failure), and `ErrorDetail` (null on success; `ExecutionResult.ErrorMessage` on failure). `GetHistory()`, `HistoryCount`, and `ClearHistory()` expose buffer state. All three return safe empty results (or zero) before initialization.
+
+> **⚠ Breaking change (v.rich-history-entries):** Failure entries now appear in `GetHistory()`. Consumers that iterate history and assume all entries are successful must add a `Status == ExecutionError.None` filter to preserve previous behaviour.
 - **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then checks `TypeCommandProfileCache`. On cache hit, delegates to `InstanceScanner.ScanFromProfile()`; on cache miss, delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
 - **Pre-scan cache:** `ScanCommandHosts(Type[])` and `ScanCommandHosts(Assembly[])` pre-scan types decorated with `[CommandHost]` and store their `TypeCommandProfile` in the cache. Only `[CommandHost]`-decorated types are processed; others are silently skipped.
 - **Suggestions:** `GetSuggestions(prefix)` and `GetSuggestions(prefix, matcher)` return `CommandSuggestion[]` from a sorted name snapshot obtained via `_registry.GetAllNames()`. The single-argument overload resolves the matcher via `_suggestionMatcher ?? _defaultMatcher`, where `_defaultMatcher` is a `private static readonly PrefixSuggestionMatcher` (allocated once per AppDomain). `SetSuggestionMatcher(matcher)` sets the instance-level `_suggestionMatcher` field; passing `null` reverts to the built-in default. `Shutdown()` nulls `_suggestionMatcher`. All suggestion methods return `Array.Empty<CommandSuggestion>()` before `Initialize()` or after `Shutdown()`.
@@ -217,6 +219,23 @@ public sealed class CommandParameterInfo
 
 Describes a single command parameter. `Name` is used in error messages. `Type` must be a type supported by the `ArgumentConverter`.
 
+### CommandHistoryEntry
+
+```csharp
+public readonly struct CommandHistoryEntry
+{
+    public string    CommandName { get; }   // command name as passed to Execute()
+    public string[]  Args        { get; }   // isolated copy of argument tokens (never null)
+    public object    ReturnValue { get; }   // callback return value; null on failure or void
+    public DateTime  Timestamp   { get; }   // UTC time at recording (DateTime.UtcNow)
+    public string[]  RawInput    { get; }   // raw input snapshot: [commandName, args...] (never null)
+    public ExecutionError Status { get; }   // ExecutionError.None on success; specific error on failure
+    public string    ErrorDetail { get; }   // null on success; ErrorMessage from ExecutionResult on failure
+}
+```
+
+An immutable record of one execution event. Entries are created for all executions that pass the `IsInitialized` guard (see recording policy under **CommandSystem → History** above). `Args` and `RawInput` are always isolated array snapshots — mutating the caller's original arrays after `Execute()` does not affect stored entries. `Status` is the primary field for distinguishing success entries from failure entries.
+
 ### Result Types
 
 Both result types are `readonly struct` — no heap allocation.
@@ -233,15 +252,24 @@ ExecutionResult    { bool Success, ExecutionError Error, string ErrorMessage, Ex
 ```
 CommandSystem.Execute("set_health", ["player1", "100"])
   │
-  ├─ [gate] IsInitialized? No → ExecutionResult.Fail(NotInitialized)
+  ├─ [gate] IsInitialized? No → ExecutionResult.Fail(NotInitialized)  ← NOT recorded
   │
-  └─ ExecutionHandler.Execute(...)
-       ├─ name null/empty? → Fail(NullOrEmptyCommandName)
-       ├─ registry lookup failed? → Fail(CommandNotFound)
-       ├─ arg count mismatch? → Fail(ArgumentCountMismatch)
-       ├─ per argument: TryConvert failed? → Fail(ArgumentConversionFailed)
-       ├─ callback throws? → Fail(CallbackThrewException, ex)
-       └─ → ExecutionResult.Ok()
+  ├─ timestamp = DateTime.UtcNow
+  ├─ rawInput  = BuildRawInput(commandName, args)
+  │
+  ├─ ExecutionHandler.Execute(...)
+  │     ├─ name null/empty? → Fail(NullOrEmptyCommandName)
+  │     ├─ registry lookup failed? → Fail(CommandNotFound)
+  │     ├─ arg count mismatch? → Fail(ArgumentCountMismatch)
+  │     ├─ per argument: TryConvert failed? → Fail(ArgumentConversionFailed)
+  │     ├─ callback throws? → Fail(CallbackThrewException, ex)
+  │     └─ → ExecutionResult.Ok()
+  │
+  ├─ _historyBuffer.Record(commandName, args, result.ReturnValue,
+  │                         timestamp, rawInput, result.Error, result.ErrorMessage)
+  │     ← recorded for ALL outcomes past the IsInitialized guard
+  │
+  └─ return result
 ```
 
 ## Registration Flow
