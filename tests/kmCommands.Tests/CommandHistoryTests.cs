@@ -105,18 +105,20 @@ namespace kmCommands.Tests
         }
 
         [Test]
-        public void Execute_FailedCommand_DoesNotIncrementHistoryCount()
+        public void Execute_FailedCommand_RecordsFailureEntryInHistory()
         {
             _system.Execute("doesnotexist", Array.Empty<string>());
-            Assert.That(_system.HistoryCount, Is.EqualTo(0));
+            Assert.That(_system.HistoryCount, Is.EqualTo(1));
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.CommandNotFound));
         }
 
         [Test]
-        public void Execute_ArgumentConversionFailed_DoesNotIncrementHistoryCount()
+        public void Execute_ArgumentConversionFailed_RecordsFailureEntryInHistory()
         {
             Register("add", new[] { new CommandParameterInfo("n", typeof(int)) }, _ => null);
             _system.Execute("add", new[] { "notanumber" });
-            Assert.That(_system.HistoryCount, Is.EqualTo(0));
+            Assert.That(_system.HistoryCount, Is.EqualTo(1));
+            Assert.That(_system.GetHistory()[0].Status, Is.EqualTo(ExecutionError.ArgumentConversionFailed));
         }
 
         // â”€â”€ argument snapshot independence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
