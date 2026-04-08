@@ -37,7 +37,22 @@ namespace kmCommands
         /// The instance bound to this command is null or has been garbage collected.
         /// Call <c>UnregisterInstance</c> to clean up stale commands.
         /// </summary>
-        InstanceNull
+        InstanceNull,
+
+        /// <summary>The nesting depth limit was reached before all nested commands could be resolved.</summary>
+        NestedCommandDepthExceeded,
+
+        /// <summary>An inner command in a nested expression failed during execution.</summary>
+        NestedCommandFailed,
+
+        /// <summary>An inner command returns void and cannot be used as an argument value.</summary>
+        NestedCommandVoidReturn,
+
+        /// <summary>A nested command token could not be parsed (e.g., empty expression <c>$()</c>).</summary>
+        NestedCommandParseFailed,
+
+        /// <summary>The return type of an inner command is incompatible with the outer parameter type.</summary>
+        NestedCommandTypeMismatch
     }
 
     /// <summary>

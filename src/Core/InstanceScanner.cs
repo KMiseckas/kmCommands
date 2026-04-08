@@ -237,7 +237,8 @@ namespace kmCommands.Core
                 CommandCallback callback = InstanceCallbackBuilder.BuildMethodCallback(
                     target, me.Method, me.ReflectedParams);
                 CommandDefinition def = new CommandDefinition(
-                    fullName, me.Parameters, callback, me.Description, isInstanceCommand: true);
+                    fullName, me.Parameters, callback, me.Description,
+                    isInstanceCommand: true, returnType: me.Method.ReturnType);
 
                 if (!_registry.TryRegister(def))
                 {
@@ -264,7 +265,8 @@ namespace kmCommands.Core
                     CommandCallback callback = InstanceCallbackBuilder.BuildMethodCallback(
                         target, me.Method, me.ReflectedParams);
                     CommandDefinition def = new CommandDefinition(
-                        fullName, me.Parameters, callback, null, isInstanceCommand: true);
+                        fullName, me.Parameters, callback, null,
+                        isInstanceCommand: true, returnType: me.Method.ReturnType);
 
                     if (!_registry.TryRegister(def))
                     {
@@ -292,7 +294,7 @@ namespace kmCommands.Core
                             InstanceCallbackBuilder.BuildGetterCallback(target, pe.Property);
                         CommandDefinition def = new CommandDefinition(
                             getterName, Array.Empty<CommandParameterInfo>(),
-                            cb, null, isInstanceCommand: true);
+                            cb, null, isInstanceCommand: true, returnType: pe.Property.PropertyType);
                         if (_registry.TryRegister(def))
                         {
                             _instanceRegistry.TrackCommand(instanceKey, getterName);
@@ -318,7 +320,8 @@ namespace kmCommands.Core
                         CommandCallback cb =
                             InstanceCallbackBuilder.BuildSetterCallback(target, pe.Property);
                         CommandDefinition def = new CommandDefinition(
-                            setterName, setterParams, cb, null, isInstanceCommand: true);
+                            setterName, setterParams, cb, null,
+                            isInstanceCommand: true, returnType: typeof(void));
                         if (_registry.TryRegister(def))
                         {
                             _instanceRegistry.TrackCommand(instanceKey, setterName);
@@ -532,7 +535,8 @@ namespace kmCommands.Core
                 target, method, reflectedParams);
 
             CommandDefinition definition = new CommandDefinition(
-                fullName, parameters, callback, description, isInstanceCommand: true);
+                fullName, parameters, callback, description,
+                isInstanceCommand: true, returnType: method.ReturnType);
 
             if (!_registry.TryRegister(definition))
             {
@@ -552,7 +556,8 @@ namespace kmCommands.Core
         {
             CommandCallback callback = InstanceCallbackBuilder.BuildGetterCallback(target, property);
             CommandDefinition definition = new CommandDefinition(
-                fullName, Array.Empty<CommandParameterInfo>(), callback, null, isInstanceCommand: true);
+                fullName, Array.Empty<CommandParameterInfo>(), callback, null,
+                isInstanceCommand: true, returnType: property.PropertyType);
 
             if (!_registry.TryRegister(definition))
             {
@@ -577,7 +582,8 @@ namespace kmCommands.Core
 
             CommandCallback callback = InstanceCallbackBuilder.BuildSetterCallback(target, property);
             CommandDefinition definition = new CommandDefinition(
-                fullName, parameters, callback, null, isInstanceCommand: true);
+                fullName, parameters, callback, null,
+                isInstanceCommand: true, returnType: typeof(void));
 
             if (!_registry.TryRegister(definition))
             {

@@ -34,10 +34,11 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 │  Command   │ │  Argument    │ │  Execution     │ │  Attribute       │ │  Command History     │
 │  Registry  │ │  Converter   │ │  Handler       │ │  Scanner         │ │  Buffer              │
 └────────────┘ └──────────────┘ └────────────────┘ └──────────────────┘ └──────────────────────┘
-                                                                          ┌──────────────────────┐
-                                                                          │  Prefix Suggestion   │
-                                                                          │  Matcher (internal)  │
-                                                                          └──────────────────────┘
+                                ┌────────────────┐                        ┌──────────────────────┐
+                                │  Nested        │                        │  Prefix Suggestion   │
+                                │  Command       │                        │  Matcher (internal)  │
+                                │  Resolver      │                        └──────────────────────┘
+                                └────────────────┘
 ```
 
 ## Namespaces
@@ -45,7 +46,7 @@ The library exposes a single public entry point (`CommandSystem`) that the consu
 | Namespace         | Contents                                                                                                                                                                                                                                                                                                                                                             | Visibility |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `kmCommands`      | `CommandSystem`, `CommandAttribute`, `CommandHostAttribute`, `ScanOptions`, `CommandCallback`, `CommandParameterInfo`, `CommandMetadataSnapshot`, `CommandHistoryEntry`, `TypeConverterDelegate`, `RegistrationResult`, `ExecutionResult`, `ScanResult`, `ScanEntry`, `InstanceScanMode`, `UnregisterResult`, `CommandSuggestion`, `ISuggestionMatcher`, error enums | Public     |
-| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`, `PrefixSuggestionMatcher`                                                                                            | Internal   |
+| `kmCommands.Core` | `CommandRegistry`, `ArgumentConverter`, `ExecutionHandler`, `AttributeScanner`, `InstanceScanner`, `InstanceCallbackBuilder`, `InstanceRegistry`, `CommandDefinition`, `CommandHistoryBuffer`, `TypeCommandProfile`, `TypeCommandProfileCache`, `PrefixSuggestionMatcher`, `NestedCommandResolver`, `NestedCommandTokenizer`, `ResolvedArg`, `NestedResolveResult`   | Internal   |
 
 ## Components
 
@@ -63,6 +64,7 @@ The public entry point. The consumer creates an instance, calls `Initialize()`, 
 
 - **Instance commands:** `RegisterInstance(target, key, options, mode)` validates inputs, reserves the key in `InstanceRegistry`, then checks `TypeCommandProfileCache`. On cache hit, delegates to `InstanceScanner.ScanFromProfile()`; on cache miss, delegates to `InstanceScanner.Scan()`. `UnregisterInstance(key)` retrieves command names from `InstanceRegistry`, removes each from `CommandRegistry` via `TryRemove`, then calls `RemoveKey`. Both methods guard on `IsInitialized`.
 - **Pre-scan cache:** `ScanCommandHosts(Type[])` and `ScanCommandHosts(Assembly[])` pre-scan types decorated with `[CommandHost]` and store their `TypeCommandProfile` in the cache. Only `[CommandHost]`-decorated types are processed; others are silently skipped.
+- **Nested command execution:** When `Execute()` detects a `$(…)` token in the args, it delegates to `NestedCommandResolver.ResolveArgs` (depth 0) before calling `ExecutionHandler`. Inner commands execute and record to history before the outer command resolves. When no nested tokens are present, the existing execution path is taken without any overhead. `DefaultNestedCommandDepth` (4) is the default maximum nesting depth; override via `CommandConfig.NestedCommandDepth`.
 - **Suggestions:** `GetSuggestions(prefix)` and `GetSuggestions(prefix, matcher)` return `CommandSuggestion[]` from a sorted name snapshot obtained via `_registry.GetAllNames()`. The single-argument overload resolves the matcher via `_suggestionMatcher ?? _defaultMatcher`, where `_defaultMatcher` is a `private static readonly PrefixSuggestionMatcher` (allocated once per AppDomain). `SetSuggestionMatcher(matcher)` sets the instance-level `_suggestionMatcher` field; passing `null` reverts to the built-in default. `Shutdown()` nulls `_suggestionMatcher`. All suggestion methods return `Array.Empty<CommandSuggestion>()` before `Initialize()` or after `Shutdown()`.
 - **Thread safety:** Not thread-safe. All calls must originate from the same thread (main thread in Unity).
 
@@ -119,6 +121,24 @@ An `internal sealed class` that orchestrates the full execution path:
 - All other exceptions → `ExecutionError.CallbackThrewException`.
 
 The `IsInstanceCommand` flag gates the `InstanceNull` path, ensuring that static commands which happen to throw `NullReferenceException` are reported as `CallbackThrewException`.
+
+### NestedCommandResolver
+
+An `internal sealed class` that resolves `$(…)` argument tokens by recursively executing inner commands and substituting their return values.
+
+- `ResolveArgs(string[] args, int currentDepth)` — iterates the args array; for each `$(…)` token, parses the inner expression via `NestedCommandTokenizer`, validates and executes the inner command recursively via `ExecutionHandler.ExecuteResolved`, records the inner result to the history buffer, and accumulates a `ResolvedArg[]` on success.
+- Enforces the `_maxDepth` limit (`currentDepth >= _maxDepth` → `NestedCommandDepthExceeded`).
+- Pre-execution validation: registry lookup (`NestedCommandFailed` if absent); `ReturnType == typeof(void)` check (`NestedCommandVoidReturn`).
+- Inner failures propagate upward as `NestedCommandFailed`, wrapping the inner `ErrorMessage`.
+- `IsNestedToken(arg)` — returns `true` when `arg` starts with `$(` and ends with `)`, length ≥ 3.
+
+### NestedCommandTokenizer
+
+An `internal static class` that splits a nested command expression into its name and argument tokens. Balanced-delimiter-aware: `$(…)` groups are kept as a single atomic token regardless of spaces inside.
+
+- `Tokenize(string content)` — whitespace-splits `content`, tracking `$(` / `)` depth so that nested expressions are never broken apart.
+- Null/empty input returns `Array.Empty<string>()`.
+- Does not throw on malformed input (e.g., unclosed `$(`); the resolver handles empty-token results.
 
 ### CommandDefinition
 
@@ -258,11 +278,32 @@ CommandSystem.Execute("set_health", ["player1", "100"])
   ├─ timestamp = DateTime.UtcNow
   ├─ rawInput  = BuildRawInput(commandName, args)
   │
-  ├─ ExecutionHandler.Execute(...)
+  ├─ [fast-path] HasNestedTokens(args)?
+  │     │
+  │     ├─ YES → NestedCommandResolver.ResolveArgs(args, depth=0)
+  │     │           For each $(…) token:
+  │     │             ├─ depth >= maxDepth? → Fail(NestedCommandDepthExceeded)
+  │     │             ├─ parse via NestedCommandTokenizer.Tokenize
+  │     │             ├─ registry lookup failed? → Fail(NestedCommandFailed)
+  │     │             ├─ ReturnType == void? → Fail(NestedCommandVoidReturn)
+  │     │             ├─ recursive ResolveArgs(innerArgs, depth+1)
+  │     │             ├─ ExecutionHandler.ExecuteResolved(innerName, resolvedInnerArgs)
+  │     │             ├─ _historyBuffer.Record(inner)   ← inner recorded here
+  │     │             └─ inner failure? → Fail(NestedCommandFailed)
+  │     │           → ResolvedArg[] on success
+  │     │
+  │     │         On resolve success:
+  │     │           ExecutionHandler.ExecuteResolved(commandName, resolvedArgs)
+  │     │
+  │     └─ NO  → ExecutionHandler.Execute(commandName, args)  ← existing path unchanged
+  │
+  │  [either path produces ExecutionResult]
+  │
+  ├─ ExecutionHandler.Execute(…) / ExecuteResolved(…)
   │     ├─ name null/empty? → Fail(NullOrEmptyCommandName)
   │     ├─ registry lookup failed? → Fail(CommandNotFound)
   │     ├─ arg count mismatch? → Fail(ArgumentCountMismatch)
-  │     ├─ per argument: TryConvert failed? → Fail(ArgumentConversionFailed)
+  │     ├─ per argument: TryConvert / assignability check → Fail(ArgumentConversionFailed / NestedCommandTypeMismatch)
   │     ├─ callback throws? → Fail(CallbackThrewException, ex)
   │     └─ → ExecutionResult.Ok()
   │

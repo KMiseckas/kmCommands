@@ -1174,17 +1174,19 @@ CommandSuggestion[] suggestions = snapshot.GetSuggestions("he", myCustomMatcher)
 
 `CommandConfig` is a public class that holds the initialisation settings with coded defaults:
 
-| Property          | Type   | Default                                | Description                                        |
-| ----------------- | ------ | -------------------------------------- | -------------------------------------------------- |
-| `HistoryCapacity` | `int`  | `CommandSystem.DefaultHistoryCapacity` | Max history entries. Values < 1 are clamped to 1.  |
-| `DevMode`         | `bool` | `false`                                | Enables dev-mode — dev-only commands are included. |
+| Property             | Type   | Default                                   | Description                                            |
+| -------------------- | ------ | ----------------------------------------- | ------------------------------------------------------ |
+| `HistoryCapacity`    | `int`  | `CommandSystem.DefaultHistoryCapacity`    | Max history entries. Values < 1 are clamped to 1.      |
+| `DevMode`            | `bool` | `false`                                   | Enables dev-mode — dev-only commands are included.     |
+| `NestedCommandDepth` | `int`  | `CommandSystem.DefaultNestedCommandDepth` | Max `$(…)` nesting depth. Values < 1 are clamped to 1. |
 
 ### Writing a Config File
 
 ```json
 {
   "historyCapacity": 128,
-  "devMode": true
+  "devMode": true,
+  "nestedCommandDepth": 2
 }
 ```
 
@@ -1285,3 +1287,94 @@ An empty object `{}` is valid and applies all defaults — identical to calling 
 ### After `Shutdown()`
 
 Config state is consumed only during `Initialize`. After `Shutdown()`, calling `Initialize(config)` again with a fresh config works correctly.
+
+---
+
+## Commands as Command Arguments
+
+Any string argument token that matches the `$(…)` pattern is resolved as a nested command invocation. The inner command executes first and its return value is passed as the argument to the outer command. This allows you to compose commands without a separate intermediate variable.
+
+### Syntax
+
+```
+$(commandName arg1 arg2 …)
+```
+
+- The token must begin with `$(` and end with `)`.
+- Everything between the delimiters is treated as the inner command name followed by its own arguments (whitespace-delimited, nested `$(…)` kept atomic).
+- Normal argument tokens alongside nested tokens are treated as plain strings as usual.
+
+### Basic Example
+
+```csharp
+// Register an inner command that returns a computed value.
+sys.Register("get_bonus", Array.Empty<CommandParameterInfo>(), _ => (object)50);
+
+// Register an outer command that accepts an int.
+sys.Register("add_score", new[] { new CommandParameterInfo("amount", typeof(int)) },
+    args => { score += (int)args[0]; return null; });
+
+// Execute — the inner command runs first, outer receives 50.
+sys.Execute("add_score", new[] { "$(get_bonus)" });
+```
+
+### Nested Nesting
+
+`$(…)` tokens inside an inner expression are resolved first (innermost-first evaluation):
+
+```csharp
+sys.Execute("add_score", new[] { "$(multiply $(get_bonus) 2)" });
+// get_bonus → 50  →  multiply 50 2 → 100  →  add_score 100
+```
+
+### Depth Limit
+
+Nesting is limited to avoid unbounded recursion. The default maximum depth is `CommandSystem.DefaultNestedCommandDepth` (4). This means you can nest up to 4 levels deep.
+
+The depth limit is configurable via `CommandConfig.NestedCommandDepth` (see [Configuration](#configuration)):
+
+```json
+{ "nestedCommandDepth": 2 }
+```
+
+A value of 0 in config is clamped to 1 (at least one level of nesting is always permitted when the feature is enabled).
+
+### History Recording
+
+Both inner and outer commands are recorded in the history buffer. Inner commands appear **before** the outer command in history order (chronological order of execution). Inner commands that fail are also recorded with their failure status.
+
+### Error Codes
+
+Nested command resolution returns structured errors on the outer `ExecutionResult`:
+
+| `ExecutionError`             | Meaning                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NestedCommandDepthExceeded` | Nesting depth exceeds the configured limit.                                                                                                                 |
+| `NestedCommandFailed`        | The inner command's own execution failed (name not found, arg mismatch, callback threw, etc.). The outer `ErrorMessage` includes the inner failure message. |
+| `NestedCommandVoidReturn`    | The inner command was declared as void and cannot supply a value.                                                                                           |
+| `NestedCommandParseFailed`   | The `$(…)` expression was empty — `$()` with nothing inside.                                                                                                |
+| `NestedCommandTypeMismatch`  | The inner command's return value is incompatible with the outer parameter's type and no string fallback conversion is possible.                             |
+
+All other existing `ExecutionError` values continue to apply to the outer command (argument count mismatch, callback threw, etc.).
+
+### Limitations
+
+- Inner commands must return a non-void value. Void-returning commands (methods declared as `void`) cannot be used as arguments.
+- The inner return type must be compatible with the outer parameter type, or convertible via the registered string converter for that type.
+- Setter property commands (`key.set_Property`) are void and cannot be nested.
+- Circular command calls (a command that calls itself via nesting) are bounded by the depth limit and will return `NestedCommandDepthExceeded` rather than stack-overflow.
+
+### Autocompletion Support
+
+`GetSuggestions(prefix)` detects an unclosed `$(` in the prefix and automatically scopes suggestions to the inner command name being typed. This means the autocomplete experience is consistent whether the user is typing a top-level command or an argument to another command.
+
+Examples:
+
+| Prefix typed by user | Suggestions returned                                           |
+| -------------------- | -------------------------------------------------------------- |
+| `"heal"`             | Commands starting with `"heal"` (normal behavior)              |
+| `"$("`               | All registered commands                                        |
+| `"$(get"`            | Commands starting with `"get"`                                 |
+| `"$(outer $(get"`    | Commands starting with `"get"` (innermost open delimiter wins) |
+
+Closed `$(…)` expressions in the prefix do not affect suggestion scoping — only the innermost unclosed `$(` is relevant.

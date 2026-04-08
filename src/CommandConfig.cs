@@ -40,6 +40,13 @@ namespace kmCommands
         public bool DevMode { get; set; }
 
         /// <summary>
+        /// The maximum nesting depth for <c>$(…)</c> command arguments.
+        /// Defaults to <see cref="CommandSystem.DefaultNestedCommandDepth"/>.
+        /// Values less than 1 are clamped to 1 by <see cref="CommandSystem.Initialize(CommandConfig)"/>.
+        /// </summary>
+        public int NestedCommandDepth { get; set; } = CommandSystem.DefaultNestedCommandDepth;
+
+        /// <summary>
         /// Parses a JSON string and returns a <see cref="ConfigResult"/> carrying either a
         /// populated <see cref="CommandConfig"/> (with optional warnings) or a failure.
         /// </summary>
@@ -91,6 +98,16 @@ namespace kmCommands
                                 entry.ValueType != null ? entry.ValueType.Name : "null"));
                     }
                     config.DevMode = (bool)entry.Value;
+                }
+                else if (StringEquals(entry.Key, "nestedCommandDepth"))
+                {
+                    if (entry.ValueType != typeof(int))
+                    {
+                        return ConfigResult.Fail(ConfigError.TypeMismatch,
+                            string.Format("Expected integer for 'nestedCommandDepth', got {0}.",
+                                entry.ValueType != null ? entry.ValueType.Name : "null"));
+                    }
+                    config.NestedCommandDepth = (int)entry.Value;
                 }
                 else
                 {
