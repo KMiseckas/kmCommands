@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Ready for Design
 
 ## Branch
 
@@ -94,14 +94,14 @@ All AI types exist exclusively behind the `KMCOMMANDS_AI` conditional compilatio
 ### Async Queue
 
 21. An internal async AI queue serialises concurrent AI requests so a single provider reference is not called simultaneously from multiple threads of dispatch.
-22. The queue is not exposed as a public API; it is an internal concurrency guard only.
+22. The queue is `internal` (package-private) — not part of the public API, but accessible to other internal features (e.g., Agent Loop) within the library.
 23. The queue holds a `CancellationTokenSource` that is cancelled by `Shutdown()`.
 24. The queue passes its `CancellationToken` (combined with any caller-supplied token) into `ILlmProvider.CallAsync`.
 
 ### Shutdown
 
 25. `Shutdown()` cancels the AI queue's `CancellationTokenSource` before nulling the provider reference or other AI state.
-26. `Shutdown()` waits for (or detaches from) the queue so that calling code does not observe partially-cancelled state — the exact drain strategy (await vs. discard) is a design-time decision.
+26. `Shutdown()` does not await or drain pending AI tasks — it cancels and discards. In-flight requests are abandoned; `Shutdown()` remains synchronous and does not become `async`.
 27. `Shutdown()` sets the provider reference to null after cancellation.
 28. `Shutdown()` resets `AiSettings` to defaults (consistent with existing reset behaviour in `Shutdown()`).
 
@@ -133,9 +133,11 @@ All AI types exist exclusively behind the `KMCOMMANDS_AI` conditional compilatio
 
 ## Open Questions
 
-1. **Queue drain strategy on Shutdown**: should `Shutdown()` await pending AI tasks (synchronous block), fire-and-forget via `ContinueWith`, or simply cancel and discard? The choice affects whether the caller can observe partially-executed work and whether `Shutdown()` must itself become async.
-2. **`CommandConfig` extension placement**: should `AiSettings` be a property directly on `CommandConfig` gated by `#if KMCOMMANDS_AI`, or should a separate `CommandConfig.WithAi(AiSettings)` builder method be provided to keep the non-AI config surface clean?
-3. **Queue exposure**: if a future feature needs to enqueue work explicitly (e.g., Agent Loop), does the queue remain fully internal or does it become a package-private (internal) type?
+None — all questions resolved:
+
+1. **Shutdown drain strategy** → cancel and discard; `Shutdown()` remains synchronous.
+2. **`CommandConfig` extension** → `AiSettings` property directly on `CommandConfig`, gated by `#if KMCOMMANDS_AI`.
+3. **Queue exposure** → `internal` so Agent Loop and other future internal features can enqueue work directly.
 
 ## PR Scope
 
