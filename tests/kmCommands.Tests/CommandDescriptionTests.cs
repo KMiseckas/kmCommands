@@ -140,6 +140,28 @@ namespace kmCommands.Tests
             Assert.That(desc, Is.Null);
         }
 
+        [Test]
+        public void TryGetDescription_NullName_ReturnsFalse()
+        {
+            CommandMetadataSnapshot snapshot = _system.GetSnapshot();
+
+            bool found = snapshot.TryGetDescription(null, out string desc);
+
+            Assert.That(found, Is.False);
+            Assert.That(desc, Is.Null);
+        }
+
+        [Test]
+        public void TryGetDescription_EmptyName_ReturnsFalse()
+        {
+            CommandMetadataSnapshot snapshot = _system.GetSnapshot();
+
+            bool found = snapshot.TryGetDescription(string.Empty, out string desc);
+
+            Assert.That(found, Is.False);
+            Assert.That(desc, Is.Null);
+        }
+
         // â”€â”€ AC #8: Empty singleton returns false â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         [Test]

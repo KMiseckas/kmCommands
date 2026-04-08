@@ -119,6 +119,15 @@ namespace kmCommands.Tests
         }
 
         [Test]
+        public void TryGetCommandParameters_EmptyName_ReturnsFalse()
+        {
+            bool found = _system.TryGetCommandParameters(string.Empty, out CommandParameterInfo[] parameters);
+
+            Assert.That(found, Is.False);
+            Assert.That(parameters, Is.Null);
+        }
+
+        [Test]
         public void TryGetCommandParameters_UnknownCommand_ReturnsFalse()
         {
             bool found = _system.TryGetCommandParameters("nonexistent", out CommandParameterInfo[] parameters);

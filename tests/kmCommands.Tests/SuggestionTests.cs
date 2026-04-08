@@ -125,6 +125,21 @@ namespace kmCommands.Tests
             Assert.That(result.Length, Is.EqualTo(0));
         }
 
+        [Test]
+        public void GetSuggestions_UnclosedNestedPrefix_UsesInnermostCommandPrefix()
+        {
+            RegisterNoArgs("heal");
+            RegisterNoArgs("help");
+            RegisterNoArgs("jump");
+
+            CommandSuggestion[] result = _system.GetSuggestions("outer $(he");
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result[0].CommandName, Is.EqualTo("heal").Or.EqualTo("help"));
+            Assert.That(result[1].CommandName, Is.EqualTo("heal").Or.EqualTo("help"));
+        }
+
         // ── test 6: pre-Initialize returns empty array without throwing ───────
 
         [Test]
@@ -192,6 +207,18 @@ namespace kmCommands.Tests
             {
                 Assert.That(nullMatcherResult[i].CommandName, Is.EqualTo(defaultResult[i].CommandName));
             }
+        }
+
+        [Test]
+        public void GetSuggestions_TwoArgMatcher_ReceivesInnermostNestedPrefix()
+        {
+            RegisterNoArgs("heal");
+
+            var matcher = new CapturingMatcher();
+
+            _system.GetSuggestions("outer $(he", matcher);
+
+            Assert.That(matcher.ReceivedPrefix, Is.EqualTo("he"));
         }
 
         // ── test 10: SetSuggestionMatcher affects subsequent default calls ────
@@ -360,6 +387,17 @@ namespace kmCommands.Tests
                     results.Add(commandNames[i]);
                 }
                 return results;
+            }
+        }
+
+        private sealed class CapturingMatcher : ISuggestionMatcher
+        {
+            public string ReceivedPrefix { get; private set; }
+
+            public IList<string> Match(string prefix, string[] commandNames)
+            {
+                ReceivedPrefix = prefix;
+                return Array.Empty<string>();
             }
         }
     }
