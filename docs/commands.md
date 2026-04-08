@@ -1174,11 +1174,11 @@ CommandSuggestion[] suggestions = snapshot.GetSuggestions("he", myCustomMatcher)
 
 `CommandConfig` is a public class that holds the initialisation settings with coded defaults:
 
-| Property              | Type   | Default                                     | Description                                                 |
-| --------------------- | ------ | ------------------------------------------- | ----------------------------------------------------------- |
-| `HistoryCapacity`     | `int`  | `CommandSystem.DefaultHistoryCapacity`      | Max history entries. Values < 1 are clamped to 1.           |
-| `DevMode`             | `bool` | `false`                                     | Enables dev-mode — dev-only commands are included.          |
-| `NestedCommandDepth`  | `int`  | `CommandSystem.DefaultNestedCommandDepth`   | Max `$(…)` nesting depth. Values < 1 are clamped to 1.     |
+| Property             | Type   | Default                                   | Description                                            |
+| -------------------- | ------ | ----------------------------------------- | ------------------------------------------------------ |
+| `HistoryCapacity`    | `int`  | `CommandSystem.DefaultHistoryCapacity`    | Max history entries. Values < 1 are clamped to 1.      |
+| `DevMode`            | `bool` | `false`                                   | Enables dev-mode — dev-only commands are included.     |
+| `NestedCommandDepth` | `int`  | `CommandSystem.DefaultNestedCommandDepth` | Max `$(…)` nesting depth. Values < 1 are clamped to 1. |
 
 ### Writing a Config File
 
@@ -1347,13 +1347,13 @@ Both inner and outer commands are recorded in the history buffer. Inner commands
 
 Nested command resolution returns structured errors on the outer `ExecutionResult`:
 
-| `ExecutionError` | Meaning |
-|---|---|
-| `NestedCommandDepthExceeded` | Nesting depth exceeds the configured limit. |
-| `NestedCommandFailed` | The inner command's own execution failed (name not found, arg mismatch, callback threw, etc.). The outer `ErrorMessage` includes the inner failure message. |
-| `NestedCommandVoidReturn` | The inner command was declared as void and cannot supply a value. |
-| `NestedCommandParseFailed` | The `$(…)` expression was empty — `$()` with nothing inside. |
-| `NestedCommandTypeMismatch` | The inner command's return value is incompatible with the outer parameter's type and no string fallback conversion is possible. |
+| `ExecutionError`             | Meaning                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NestedCommandDepthExceeded` | Nesting depth exceeds the configured limit.                                                                                                                 |
+| `NestedCommandFailed`        | The inner command's own execution failed (name not found, arg mismatch, callback threw, etc.). The outer `ErrorMessage` includes the inner failure message. |
+| `NestedCommandVoidReturn`    | The inner command was declared as void and cannot supply a value.                                                                                           |
+| `NestedCommandParseFailed`   | The `$(…)` expression was empty — `$()` with nothing inside.                                                                                                |
+| `NestedCommandTypeMismatch`  | The inner command's return value is incompatible with the outer parameter's type and no string fallback conversion is possible.                             |
 
 All other existing `ExecutionError` values continue to apply to the outer command (argument count mismatch, callback threw, etc.).
 
@@ -1370,11 +1370,11 @@ All other existing `ExecutionError` values continue to apply to the outer comman
 
 Examples:
 
-| Prefix typed by user | Suggestions returned |
-|---|---|
-| `"heal"` | Commands starting with `"heal"` (normal behavior) |
-| `"$("` | All registered commands |
-| `"$(get"` | Commands starting with `"get"` |
-| `"$(outer $(get"` | Commands starting with `"get"` (innermost open delimiter wins) |
+| Prefix typed by user | Suggestions returned                                           |
+| -------------------- | -------------------------------------------------------------- |
+| `"heal"`             | Commands starting with `"heal"` (normal behavior)              |
+| `"$("`               | All registered commands                                        |
+| `"$(get"`            | Commands starting with `"get"`                                 |
+| `"$(outer $(get"`    | Commands starting with `"get"` (innermost open delimiter wins) |
 
 Closed `$(…)` expressions in the prefix do not affect suggestion scoping — only the innermost unclosed `$(` is relevant.
